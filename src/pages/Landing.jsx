@@ -162,7 +162,7 @@ export default function Landing() {
         {/* PROOF + CTA (no sidebar form) */}
           <div className="mt-6 grid gap-6">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-              <ProofFeed items={proof} />
+              <ProofFeed items={proof} visibleCount={10} cycleMs={2500} />
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
