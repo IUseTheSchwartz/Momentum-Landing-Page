@@ -31,10 +31,7 @@ export default function Landing() {
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
       setQuestions(q || []);
-      const { data: p } = await supabase
-        .from("mf_proof_posts")
-        .select("*")
-        .eq("is_published", true);
+      const { data: p } = await supabase.from("mf_proof_posts").select("*").eq("is_published", true);
       setProof(p || []);
     })();
   }, []);
@@ -46,7 +43,6 @@ export default function Landing() {
   }, [settings]);
 
   async function computeSlots() {
-    // Fetch rules & blocking data
     const { data: av } = await supabase
       .from("mf_availability")
       .select("*")
@@ -73,7 +69,7 @@ export default function Landing() {
       return aStart < bEnd && bStart < aEnd;
     }
 
-    // NOTE: for simplicity we approximate local→UTC with current tz offset.
+    // Approximate local→UTC conversion using current offset
     function toUtcIso(dateLocal, timeHHMM) {
       const [hh, mm] = timeHHMM.split(":").map(Number);
       const d = new Date(dateLocal);
@@ -160,7 +156,6 @@ export default function Landing() {
               <p className="text-sm text-white/70 mb-3">
                 We only take driven, coachable people. If that’s you, answer honestly.
               </p>
-              {/* keep the inline form if you want a second entry; modal is primary */}
               <QualifyForm
                 questions={questions}
                 onSubmit={async (values) => {
@@ -179,9 +174,24 @@ export default function Landing() {
                     .insert([{ full_name, email, phone, answers, utm }]);
                   if (error) return alert("Submission failed. Try again.");
 
-                  fetch("/.netlify/functions/notify-lead", {
+                  // Email via SMTP (Mailjet) - safe no-op if env not set
+                  await fetch("/.netlify/functions/send-email", {
                     method: "POST",
-                    body: JSON.stringify({ full_name, email, phone, answers, utm }),
+                    body: JSON.stringify({
+                      to: settings?.notify_emails || "",
+                      subject: `New lead — ${full_name || "Unknown"}`,
+                      text: [
+                        `New Lead from Momentum Financial`,
+                        `Name: ${full_name || "-"}`,
+                        `Email: ${email || "-"}`,
+                        `Phone: ${phone || "-"}`,
+                        "",
+                        "Answers:",
+                        ...answers.map((a) => `- ${a.question || a.question_id}: ${a.value}`),
+                        "",
+                        `UTM: ${JSON.stringify(utm || {})}`
+                      ].join("\n")
+                    }),
                   });
 
                   alert("Submitted — we’ll review and reach out.");
@@ -239,7 +249,7 @@ export default function Landing() {
                     const email = answers.find((a) => /^email$/i.test(a.question))?.value || null;
                     const phone = answers.find((a) => /^phone$/i.test(a.question))?.value || null;
 
-                    // 1) Insert lead
+                    // Insert lead
                     const { error } = await supabase
                       .from("mf_leads")
                       .insert([{ full_name, email, phone, answers, utm }]);
@@ -248,13 +258,27 @@ export default function Landing() {
                       return;
                     }
 
-                    // 2) Email "new lead"
-                    fetch("/.netlify/functions/notify-lead", {
+                    // Email "new lead" via SMTP (Mailjet)
+                    await fetch("/.netlify/functions/send-email", {
                       method: "POST",
-                      body: JSON.stringify({ full_name, email, phone, answers, utm }),
+                      body: JSON.stringify({
+                        to: settings?.notify_emails || "",
+                        subject: `New lead — ${full_name || "Unknown"}`,
+                        text: [
+                          `New Lead from Momentum Financial`,
+                          `Name: ${full_name || "-"}`,
+                          `Email: ${email || "-"}`,
+                          `Phone: ${phone || "-"}`,
+                          "",
+                          "Answers:",
+                          ...answers.map((a) => `- ${a.question || a.question_id}: ${a.value}`),
+                          "",
+                          `UTM: ${JSON.stringify(utm || {})}`
+                        ].join("\n")
+                      }),
                     });
 
-                    // 3) Move to slot step
+                    // Move to slot step
                     setLeadDraft({ full_name, email, phone, answers });
                     const slotsComputed = await computeSlots();
                     setSlots(slotsComputed);
@@ -313,9 +337,23 @@ export default function Landing() {
                           }
 
                           // Email "appointment"
-                          fetch("/.netlify/functions/notify-appointment", {
+                          await fetch("/.netlify/functions/send-email", {
                             method: "POST",
-                            body: JSON.stringify(appt),
+                            body: JSON.stringify({
+                              to: settings?.notify_emails || "",
+                              subject: `New appointment — ${leadDraft?.full_name || "Unknown"} — ${slt.startUtc}`,
+                              text: [
+                                `New Appointment`,
+                                `Name: ${leadDraft?.full_name || "-"}`,
+                                `Email: ${leadDraft?.email || "-"}`,
+                                `Phone: ${leadDraft?.phone || "-"}`,
+                                `When (UTC): ${slt.startUtc} → ${slt.endUtc}`,
+                                `Organizer TZ: ${settings?.brand_tz || "America/Chicago"}`,
+                                "",
+                                "Answers:",
+                                ...(leadDraft?.answers || []).map((a) => `- ${a.question || a.question_id}: ${a.value}`)
+                              ].join("\n")
+                            }),
                           });
 
                           // Offer ICS
@@ -337,7 +375,7 @@ export default function Landing() {
                           setOpen(false);
                           setBooking(false);
                         }}
-                        className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
+                        className="rounded-lg border border-white/15 bg:white/5 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
                       >
                         <div className="font-semibold">{slt.labelLocal}</div>
                         <div className="text-xs text-white/60">{slt.labelTz}</div>
