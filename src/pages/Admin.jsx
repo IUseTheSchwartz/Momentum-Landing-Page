@@ -1,5 +1,5 @@
 // File: src/pages/Admin.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { supabase, uploadPublic } from "../lib/supabaseClient.js";
 
 export default function Admin() {
@@ -374,21 +374,30 @@ function AdminQuestions() {
   );
 }
 
-/* ---------------- PROOF (NO AMOUNT • NO SCREENSHOTS) ---------------- */
+/* ---------------- PROOF (compact + delete) ---------------- */
 function AdminProof() {
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
 
+  // New: UI state for organization
+  const [q, setQ] = useState("");
+  const [onlyPinned, setOnlyPinned] = useState(false);
+  const [onlyPublished, setOnlyPublished] = useState(false);
+  const [compact, setCompact] = useState(true); // default compact view
+  const [sort, setSort] = useState("newest"); // 'newest' | 'oldest' | 'pinned'
+
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("mf_proof_posts").select("*").order("created_at", { ascending: false });
+      const { data } = await supabase
+        .from("mf_proof_posts")
+        .select("*")
+        .order("created_at", { ascending: false });
       setItems(data || []);
     })();
   }, []);
 
   function add() {
     setItems((ls) => [
-      ...ls,
       {
         id: crypto.randomUUID(),
         display_name: "New",
@@ -398,6 +407,7 @@ function AdminProof() {
         is_pinned: false,
         _new: true,
       },
+      ...ls,
     ]);
   }
 
@@ -446,6 +456,24 @@ function AdminProof() {
       </svg>
     `);
 
+  // New: Delete (DB + local)
+  async function remove(id) {
+    const row = items.find((x) => x.id === id);
+    const go = window.confirm(`Delete this proof from ${row?.display_name || "rep"}?`);
+    if (!go) return;
+
+    try {
+      if (!row?._new) {
+        const { error } = await supabase.from("mf_proof_posts").delete().eq("id", id);
+        if (error) throw error;
+      }
+      setItems((ls) => ls.filter((x) => x.id !== id));
+    } catch (e) {
+      console.error(e);
+      alert("Delete failed");
+    }
+  }
+
   async function save() {
     setSaving(true);
     try {
@@ -461,6 +489,12 @@ function AdminProof() {
         }
       }
       alert("Saved");
+      // Refresh after save to ensure clean state
+      const { data } = await supabase
+        .from("mf_proof_posts")
+        .select("*")
+        .order("created_at", { ascending: false });
+      setItems(data || []);
     } catch (e) {
       console.error(e);
       alert("Save failed");
@@ -469,113 +503,292 @@ function AdminProof() {
     }
   }
 
+  // New: derived, organized list for compact view
+  const organized = useMemo(() => {
+    let arr = [...(items || [])];
+
+    // Filter
+    if (q.trim()) {
+      const needle = q.toLowerCase();
+      arr = arr.filter(
+        (x) =>
+          (x.display_name || "").toLowerCase().includes(needle) ||
+          (x.message_text || "").toLowerCase().includes(needle)
+      );
+    }
+    if (onlyPinned) arr = arr.filter((x) => !!x.is_pinned);
+    if (onlyPublished) arr = arr.filter((x) => !!x.is_published);
+
+    // Sort
+    if (sort === "newest") {
+      arr.sort((a, b) => new Date(b.happened_at || b.created_at || 0) - new Date(a.happened_at || a.created_at || 0));
+    } else if (sort === "oldest") {
+      arr.sort((a, b) => new Date(a.happened_at || a.created_at || 0) - new Date(b.happened_at || b.created_at || 0));
+    } else if (sort === "pinned") {
+      arr.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
+    }
+    return arr;
+  }, [items, q, onlyPinned, onlyPublished, sort]);
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
         <h3 className="text-lg font-semibold">Proof Posts</h3>
-        <button onClick={add} className="px-3 py-1.5 rounded bg-white text-black">
-          Add
-        </button>
+        <div className="flex gap-2">
+          <button onClick={add} className="px-3 py-1.5 rounded bg-white text-black">
+            Add
+          </button>
+          <button onClick={save} disabled={saving} className="px-3 py-1.5 rounded bg-white/10">
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
 
-      {items.map((it, i) => {
-        const avatarId = `avatar_${it.id}`;
-        const nameId = `name_${it.id}`;
-        const whenId = `when_${it.id}`;
-        const msgId = `msg_${it.id}`;
-        const pubId = `pub_${it.id}`;
-        const pinId = `pin_${it.id}`;
+      {/* Controls: search / filters / sort / view */}
+      <div className="grid gap-2 sm:grid-cols-[1fr,auto,auto,auto]">
+        <input
+          className="bg-white/5 border border-white/15 p-2 rounded w-full"
+          placeholder="Search by name or message…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={onlyPinned} onChange={(e) => setOnlyPinned(e.target.checked)} /> Pinned only
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={onlyPublished}
+            onChange={(e) => setOnlyPublished(e.target.checked)}
+          />{" "}
+          Published only
+        </label>
+        <div className="flex items-center justify-end gap-2">
+          <select
+            className="bg-white/5 border border-white/15 p-2 rounded text-sm"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            title="Sort"
+          >
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="pinned">Pinned first</option>
+          </select>
+          <button
+            className="px-2 py-1 rounded bg-white/10 text-sm"
+            onClick={() => setCompact((v) => !v)}
+            title="Toggle compact view"
+          >
+            {compact ? "Expanded" : "Compact"}
+          </button>
+        </div>
+      </div>
 
-        return (
-          <div key={it.id} className="rounded-xl bg-black/20 p-3 border border-white/10 space-y-3">
-            {/* Avatar */}
-            <label htmlFor={avatarId} className="text-xs text-white/60 inline-block">
-              Avatar (upload)
-              <input
-                id={avatarId}
-                type="file"
-                accept="image/*"
-                className="mt-1 block w-full text-sm"
-                onChange={(e) => uploadAvatar(i, e.target.files?.[0])}
-              />
-              <div className="mt-2">
-                <img
-                  src={it.avatar_url || DEFAULT_AVATAR}
-                  className="h-16 w-16 rounded-full object-cover border border-white/10"
-                  alt="avatar preview"
+      {/* Compact table view */}
+      {compact ? (
+        <div className="overflow-auto rounded-xl border border-white/10">
+          <table className="min-w-full text-sm">
+            <thead className="text-white/60 bg-black/20">
+              <tr>
+                <th className="p-2 text-left">Rep</th>
+                <th className="p-2 text-left">Message</th>
+                <th className="p-2 text-left">When</th>
+                <th className="p-2 text-left">Published</th>
+                <th className="p-2 text-left">Pinned</th>
+                <th className="p-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {organized.map((it, i) => (
+                <tr key={it.id} className="border-t border-white/10 align-top">
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={it.avatar_url || DEFAULT_AVATAR}
+                        alt=""
+                        className="h-8 w-8 rounded-full object-cover border border-white/10"
+                      />
+                      <input
+                        className="bg-white/5 border border-white/15 p-1.5 rounded w-40"
+                        value={it.display_name || ""}
+                        onChange={(e) => update(items.findIndex((x) => x.id === it.id), { display_name: e.target.value })}
+                        placeholder="Rep name"
+                      />
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <textarea
+                      className="bg-white/5 border border-white/15 p-1.5 rounded w-full min-h-[40px]"
+                      value={it.message_text || ""}
+                      onChange={(e) => update(items.findIndex((x) => x.id === it.id), { message_text: e.target.value })}
+                      placeholder="Short highlight"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="datetime-local"
+                      className="bg-white/5 border border-white/15 p-1.5 rounded"
+                      value={toLocalDtValue(it.happened_at)}
+                      onChange={(e) =>
+                        update(items.findIndex((x) => x.id === it.id), {
+                          happened_at: fromLocalDtValue(e.target.value),
+                        })
+                      }
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="checkbox"
+                      checked={!!it.is_published}
+                      onChange={(e) =>
+                        update(items.findIndex((x) => x.id === it.id), { is_published: e.target.checked })
+                      }
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="checkbox"
+                      checked={!!it.is_pinned}
+                      onChange={(e) =>
+                        update(items.findIndex((x) => x.id === it.id), { is_pinned: e.target.checked })
+                      }
+                    />
+                  </td>
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <label className="px-2 py-1 rounded bg-white/10 cursor-pointer">
+                        Upload Avatar
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => uploadAvatar(items.findIndex((x) => x.id === it.id), e.target.files?.[0])}
+                        />
+                      </label>
+                      <button
+                        className="px-2 py-1 rounded bg-[#ff4040]/80 hover:bg-[#ff4040] text-white"
+                        onClick={() => remove(it.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!organized.length && (
+                <tr>
+                  <td className="p-3 text-white/60" colSpan={6}>
+                    No proof yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        // Original expanded cards (kept for detailed edits)
+        organized.map((it, i) => {
+          const avatarId = `avatar_${it.id}`;
+          const nameId = `name_${it.id}`;
+          const whenId = `when_${it.id}`;
+          const msgId = `msg_${it.id}`;
+          const pubId = `pub_${it.id}`;
+          const pinId = `pin_${it.id}`;
+
+          const idx = items.findIndex((x) => x.id === it.id);
+
+          return (
+            <div key={it.id} className="rounded-xl bg黑/20 p-3 border border-white/10 space-y-3 bg-black/20">
+              {/* Avatar */}
+              <label htmlFor={avatarId} className="text-xs text-white/60 inline-block">
+                Avatar (upload)
+                <input
+                  id={avatarId}
+                  type="file"
+                  accept="image/*"
+                  className="mt-1 block w-full text-sm"
+                  onChange={(e) => uploadAvatar(idx, e.target.files?.[0])}
                 />
+                <div className="mt-2">
+                  <img
+                    src={it.avatar_url || DEFAULT_AVATAR}
+                    className="h-16 w-16 rounded-full object-cover border border-white/10"
+                    alt="avatar preview"
+                  />
+                </div>
+              </label>
+
+              {/* Fields */}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label htmlFor={nameId} className="text-xs text-white/60">
+                  Display name
+                  <input
+                    id={nameId}
+                    className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
+                    placeholder="e.g., Logan H."
+                    value={it.display_name || ""}
+                    onChange={(e) => update(idx, { display_name: e.target.value })}
+                  />
+                </label>
+
+                <label htmlFor={whenId} className="text-xs text-white/60">
+                  When (local)
+                  <input
+                    id={whenId}
+                    type="datetime-local"
+                    className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
+                    value={toLocalDtValue(it.happened_at)}
+                    onChange={(e) => update(idx, { happened_at: fromLocalDtValue(e.target.value) })}
+                  />
+                  <div className="text-[11px] text-white/50 mt-1">Saved as ISO (UTC) under the hood.</div>
+                </label>
               </div>
-            </label>
 
-            {/* Fields */}
-            <div className="grid sm:grid-cols-2 gap-3">
-              <label htmlFor={nameId} className="text-xs text-white/60">
-                Display name
-                <input
-                  id={nameId}
-                  className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
-                  placeholder="e.g., Logan H."
-                  value={it.display_name || ""}
-                  onChange={(e) => update(i, { display_name: e.target.value })}
+              <label htmlFor={msgId} className="text-xs text-white/60 block">
+                Message text
+                <textarea
+                  id={msgId}
+                  className="mt-1 w-full bg-white/5 border border-white/15 p-2 rounded"
+                  placeholder="Short highlight / context"
+                  value={it.message_text || ""}
+                  onChange={(e) => update(idx, { message_text: e.target.value })}
                 />
               </label>
 
-              <label htmlFor={whenId} className="text-xs text-white/60">
-                When (local)
-                <input
-                  id={whenId}
-                  type="datetime-local"
-                  className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
-                  value={toLocalDtValue(it.happened_at)}
-                  onChange={(e) => update(i, { happened_at: fromLocalDtValue(e.target.value) })}
-                />
-                <div className="text-[11px] text-white/50 mt-1">Saved as ISO (UTC) under the hood.</div>
-              </label>
-            </div>
+              <div className="grid sm:grid-cols-[auto,auto,1fr,auto] gap-3 text-sm items-center">
+                <label htmlFor={pubId} className="flex items-center gap-2">
+                  <input
+                    id={pubId}
+                    type="checkbox"
+                    checked={!!it.is_published}
+                    onChange={(e) => update(idx, { is_published: e.target.checked })}
+                  />
+                  <span>Published</span>
+                </label>
 
-            <label htmlFor={msgId} className="text-xs text-white/60 block">
-              Message text
-              <textarea
-                id={msgId}
-                className="mt-1 w-full bg-white/5 border border-white/15 p-2 rounded"
-                placeholder="Short highlight / context"
-                value={it.message_text || ""}
-                onChange={(e) => update(i, { message_text: e.target.value })}
-              />
-            </label>
+                <label htmlFor={pinId} className="flex items-center gap-2">
+                  <input
+                    id={pinId}
+                    type="checkbox"
+                    checked={!!it.is_pinned}
+                    onChange={(e) => update(idx, { is_pinned: e.target.checked })}
+                  />
+                  <span>Pinned</span>
+                </label>
 
-            <div className="grid sm:grid-cols-3 gap-3 text-sm">
-              <label htmlFor={pubId} className="flex items-center gap-2">
-                <input
-                  id={pubId}
-                  type="checkbox"
-                  checked={!!it.is_published}
-                  onChange={(e) => update(i, { is_published: e.target.checked })}
-                />
-                <span>Published</span>
-              </label>
+                <div className="text-white/60 text-xs">Tip: Pin 1–2 top posts to show first.</div>
 
-              <label htmlFor={pinId} className="flex items-center gap-2">
-                <input
-                  id={pinId}
-                  type="checkbox"
-                  checked={!!it.is_pinned}
-                  onChange={(e) => update(i, { is_pinned: e.target.checked })}
-                />
-                <span>Pinned</span>
-              </label>
-
-              <div className="text-white/60 text-xs self-center">
-                Tip: Pin 1–2 top posts to show first.
+                <button
+                  className="justify-self-end px-3 py-1.5 rounded bg-[#ff4040]/80 hover:bg-[#ff4040] text-white"
+                  onClick={() => remove(it.id)}
+                >
+                  Delete
+                </button>
               </div>
             </div>
-          </div>
-        );
-      })}
-
-      <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-white text-black">
-        {saving ? "Saving…" : "Save Proof"}
-      </button>
+          );
+        })
+      )}
     </div>
   );
 }
@@ -585,7 +798,11 @@ function AdminLeads() {
   const [rows, setRows] = useState([]);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("mf_leads").select("*").order("created_at", { ascending: false }).limit(500);
+      const { data } = await supabase
+        .from("mf_leads")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
       setRows(data || []);
     })();
   }, []);
