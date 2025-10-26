@@ -11,7 +11,7 @@ export async function uploadPublic(file, folder) {
   if (!file) return null;
   const ext = file.name.split(".").pop();
   const path = `${folder}/${crypto.randomUUID()}.${ext}`;
-  const { data, error } = await supabase.storage.from("momentum-public").upload(path, file, {
+  const { error } = await supabase.storage.from("momentum-public").upload(path, file, {
     cacheControl: "3600",
     upsert: false,
   });
