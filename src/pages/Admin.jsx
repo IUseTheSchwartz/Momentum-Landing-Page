@@ -6,16 +6,33 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-[#1e1f22] text-white p-6">
       <div className="max-w-5xl mx-auto">
-        <div className="flex gap-2 mb-6">
-          {["settings", "questions", "proof"].map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg ${tab === t ? "bg:white bg-white text-black" : "bg-white/10"}`}>
+        <div className="flex gap-2 mb-6 items-center">
+          {["settings", "questions", "proof", "leads", "availability", "appointments"].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 rounded-lg ${tab === t ? "bg-white text-black" : "bg-white/10"}`}
+            >
               {t}
             </button>
           ))}
+          <div className="flex-1" />
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.reload();
+            }}
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+          >
+            Sign out
+          </button>
         </div>
         {tab === "settings" && <AdminSettings />}
         {tab === "questions" && <AdminQuestions />}
         {tab === "proof" && <AdminProof />}
+        {tab === "leads" && <AdminLeads />}
+        {tab === "availability" && <AdminAvailability />}
+        {tab === "appointments" && <AdminAppointments />}
       </div>
     </div>
   );
@@ -30,11 +47,11 @@ function Row({ label, children }) {
   );
 }
 
+/* ---------------- SETTINGS (with upload -> auto-save URL) ---------------- */
 function AdminSettings() {
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Load the newest settings row so we always have something to update
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
@@ -49,7 +66,6 @@ function AdminSettings() {
   }, []);
 
   async function ensureRow() {
-    // Make sure a row exists before saving fields
     if (s?.id) return s;
     const base = { ...(s || {}), updated_at: new Date().toISOString() };
     const { data, error } = await supabase.from("mf_site_settings").insert([base]).select().single();
@@ -58,7 +74,6 @@ function AdminSettings() {
     return data;
   }
 
-  // Create or update in DB, merging a patch
   async function savePartial(patch) {
     const current = await ensureRow();
     const payload = { ...current, ...patch, updated_at: new Date().toISOString() };
@@ -67,18 +82,16 @@ function AdminSettings() {
     setS(payload);
   }
 
-  // Upload to Supabase Storage, then persist URL into the table
   async function uploadAndSave(e, field, folder) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const url = await uploadPublic(file, folder); // uses momentum-public bucket
-      await savePartial({ [field]: url });          // immediately writes URL to table
+      const url = await uploadPublic(file, folder); // momentum-public bucket
+      await savePartial({ [field]: url });
     } catch (err) {
       console.error(err);
-      alert("Upload failed. Check bucket name/policies and that you are logged in.");
+      alert("Upload failed. Check bucket/policies and that you are logged in.");
     } finally {
-      // clear the file input so the same file can be reselected if needed
       e.target.value = "";
     }
   }
@@ -103,7 +116,6 @@ function AdminSettings() {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <h3 className="text-lg font-semibold mb-3">Site Settings</h3>
 
-      {/* LOGO: file upload -> saves URL into mf_site_settings.logo_url */}
       <Row label="Logo (upload)">
         <div className="flex items-center gap-3">
           <input type="file" accept="image/*" onChange={(e) => uploadAndSave(e, "logo_url", "logos")} />
@@ -111,7 +123,6 @@ function AdminSettings() {
         </div>
       </Row>
 
-      {/* HEADSHOT: file upload -> saves URL into mf_site_settings.headshot_url */}
       <Row label="Headshot (upload)">
         <div className="flex items-center gap-3">
           <input type="file" accept="image/*" onChange={(e) => uploadAndSave(e, "headshot_url", "headshots")} />
@@ -121,23 +132,13 @@ function AdminSettings() {
         </div>
       </Row>
 
-      {/* Optional manual URL override (paste any URL, auto-saves on blur) */}
-      <Row label="Logo URL (manual paste)">
+      <Row label="Notification recipients (emails)">
         <input
           className="w-full bg-white/5 border border-white/15 p-2 rounded"
-          value={s.logo_url || ""}
-          onChange={(e) => setS({ ...s, logo_url: e.target.value })}
-          onBlur={() => savePartial({ logo_url: s.logo_url || null })}
-          placeholder="https://cdn.example.com/logo.png"
-        />
-      </Row>
-      <Row label="Headshot URL (manual paste)">
-        <input
-          className="w-full bg-white/5 border border-white/15 p-2 rounded"
-          value={s.headshot_url || ""}
-          onChange={(e) => setS({ ...s, headshot_url: e.target.value })}
-          onBlur={() => savePartial({ headshot_url: s.headshot_url || null })}
-          placeholder="https://cdn.example.com/headshot.jpg"
+          value={s.notify_emails || ""}
+          onChange={(e) => setS({ ...s, notify_emails: e.target.value })}
+          onBlur={() => savePartial({ notify_emails: s.notify_emails || "" })}
+          placeholder="you@agency.com, manager@agency.com"
         />
       </Row>
 
@@ -227,6 +228,7 @@ function AdminSettings() {
   );
 }
 
+/* ---------------- QUESTIONS ---------------- */
 function AdminQuestions() {
   const [list, setList] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -289,7 +291,9 @@ function AdminQuestions() {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Questions</h3>
-        <button onClick={add} className="px-3 py-1.5 rounded bg-white text-black">Add</button>
+        <button onClick={add} className="px-3 py-1.5 rounded bg-white text-black">
+          Add
+        </button>
       </div>
 
       {list.map((q, i) => (
@@ -314,14 +318,31 @@ function AdminQuestions() {
             className="mt-2 w-full bg-white/5 border border-white/15 p-2 rounded"
             placeholder="Options (comma-separated, for select/radio)"
             value={(q.input_options || []).join(",")}
-            onChange={(e) => update(i, { input_options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+            onChange={(e) =>
+              update(i, {
+                input_options: e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              })
+            }
           />
           <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={!!q.required} onChange={(e) => update(i, { required: e.target.checked })} /> Required
+              <input
+                type="checkbox"
+                checked={!!q.required}
+                onChange={(e) => update(i, { required: e.target.checked })}
+              />{" "}
+              Required
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={!!q.is_active} onChange={(e) => update(i, { is_active: e.target.checked })} /> Active
+              <input
+                type="checkbox"
+                checked={!!q.is_active}
+                onChange={(e) => update(i, { is_active: e.target.checked })}
+              />{" "}
+              Active
             </label>
             <input
               type="number"
@@ -341,13 +362,17 @@ function AdminQuestions() {
   );
 }
 
+/* ---------------- PROOF ---------------- */
 function AdminProof() {
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("mf_proof_posts").select("*").order("created_at", { ascending: false });
+      const { data } = await supabase
+        .from("mf_proof_posts")
+        .select("*")
+        .order("created_at", { ascending: false });
       setItems(data || []);
     })();
   }, []);
@@ -412,11 +437,16 @@ function AdminProof() {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Proof Posts</h3>
-        <button onClick={add} className="px-3 py-1.5 rounded bg-white text-black">Add</button>
+        <button onClick={add} className="px-3 py-1.5 rounded bg-white text-black">
+          Add
+        </button>
       </div>
 
       {items.map((it, i) => (
-        <div key={it.id} className="rounded-xl bg-black/20 p-3 border border-white/10 grid sm:grid-cols-[80px,1fr] gap-3">
+        <div
+          key={it.id}
+          className="rounded-xl bg-black/20 p-3 border border-white/10 grid sm:grid-cols-[80px,1fr] gap-3"
+        >
           <div className="space-y-2">
             <input type="file" onChange={(e) => uploadAvatar(i, e.target.files?.[0])} />
             {it.avatar_url && <img src={it.avatar_url} className="h-16 w-16 rounded-full object-cover" />}
@@ -433,7 +463,9 @@ function AdminProof() {
                 className="bg-white/5 border border-white/15 p-2 rounded"
                 placeholder="Amount (USD)"
                 value={Number((it.amount_cents || 0) / 100)}
-                onChange={(e) => update(i, { amount_cents: Math.round(Number(e.target.value || 0) * 100) })}
+                onChange={(e) =>
+                  update(i, { amount_cents: Math.round(Number(e.target.value || 0) * 100) })
+                }
               />
               <input
                 className="bg-white/5 border border-white/15 p-2 rounded"
@@ -450,14 +482,30 @@ function AdminProof() {
             />
             <div className="flex items-center gap-3 text-sm">
               <label className="flex items-center gap-2">
-                <input type="checkbox" checked={!!it.is_published} onChange={(e) => update(i, { is_published: e.target.checked })} /> Published
+                <input
+                  type="checkbox"
+                  checked={!!it.is_published}
+                  onChange={(e) => update(i, { is_published: e.target.checked })}
+                />{" "}
+                Published
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" checked={!!it.is_pinned} onChange={(e) => update(i, { is_pinned: e.target.checked })} /> Pinned
+                <input
+                  type="checkbox"
+                  checked={!!it.is_pinned}
+                  onChange={(e) => update(i, { is_pinned: e.target.checked })}
+                />{" "}
+                Pinned
               </label>
               <input type="file" onChange={(e) => uploadScreenshot(i, e.target.files?.[0])} />
             </div>
-            {it.screenshot_url && <img src={it.screenshot_url} alt="screenshot" className="rounded-lg border border-white/10 max-h-40" />}
+            {it.screenshot_url && (
+              <img
+                src={it.screenshot_url}
+                alt="screenshot"
+                className="rounded-lg border border-white/10 max-h-40"
+              />
+            )}
           </div>
         </div>
       ))}
@@ -465,6 +513,378 @@ function AdminProof() {
       <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-white text-black">
         {saving ? "Saving…" : "Save Proof"}
       </button>
+    </div>
+  );
+}
+
+/* ---------------- LEADS ---------------- */
+function AdminLeads() {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("mf_leads")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      setRows(data || []);
+    })();
+  }, []);
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <h3 className="text-lg font-semibold mb-3">Leads</h3>
+      <div className="overflow-auto">
+        <table className="min-w-full text-sm">
+          <thead className="text-white/60">
+            <tr>
+              <th className="p-2 text-left">When</th>
+              <th className="p-2 text-left">Name</th>
+              <th className="p-2 text-left">Email</th>
+              <th className="p-2 text-left">Phone</th>
+              <th className="p-2 text-left">Answers</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-white/10 align-top">
+                <td className="p-2">{new Date(r.created_at).toLocaleString()}</td>
+                <td className="p-2">{r.full_name || "-"}</td>
+                <td className="p-2">{r.email || "-"}</td>
+                <td className="p-2">{r.phone || "-"}</td>
+                <td className="p-2">
+                  <ul className="space-y-1">
+                    {(r.answers || []).map((a, i) => (
+                      <li key={i} className="text-white/80">
+                        <span className="text-white/50">{a.question || a.question_id}:</span> {a.value}
+                      </li>
+                    ))}
+                  </ul>
+                </td>
+              </tr>
+            ))}
+            {!rows.length && (
+              <tr>
+                <td className="p-3 text-white/60" colSpan={5}>
+                  No leads yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- AVAILABILITY + BLACKOUTS ---------------- */
+function AdminAvailability() {
+  const [row, setRow] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("mf_availability")
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setRow(
+        data || {
+          tz: "America/Chicago",
+          slot_minutes: 30,
+          buffer_minutes: 15,
+          min_lead_hours: 12,
+          booking_window_days: 14,
+          weekly: {
+            mon: [["09:00", "18:00"]],
+            tue: [["09:00", "18:00"]],
+            wed: [["09:00", "18:00"]],
+            thu: [["09:00", "18:00"]],
+            fri: [["09:00", "18:00"]],
+            sat: [],
+            sun: [],
+          },
+        }
+      );
+    })();
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      if (row?.id) {
+        const { error } = await supabase
+          .from("mf_availability")
+          .update({ ...row, updated_at: new Date().toISOString() })
+          .eq("id", row.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("mf_availability")
+          .insert([{ ...row }])
+          .select()
+          .single();
+        if (error) throw error;
+        setRow(data);
+      }
+      alert("Saved");
+    } catch (e) {
+      console.error(e);
+      alert("Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateRange(dow, idx, field, value) {
+    setRow((r) => {
+      const w = structuredClone(r.weekly || {});
+      const pair = w[dow]?.[idx] || ["09:00", "18:00"];
+      const next = field === "start" ? [value, pair[1]] : [pair[0], value];
+      w[dow][idx] = next;
+      return { ...r, weekly: w };
+    });
+  }
+
+  function addRange(dow) {
+    setRow((r) => {
+      const w = structuredClone(r.weekly || {});
+      w[dow] = w[dow] || [];
+      w[dow].push(["09:00", "17:00"]);
+      return { ...r, weekly: w };
+    });
+  }
+
+  function removeRange(dow, idx) {
+    setRow((r) => {
+      const w = structuredClone(r.weekly || {});
+      w[dow].splice(idx, 1);
+      return { ...r, weekly: w };
+    });
+  }
+
+  if (!row) return <div>Loading…</div>;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+      <h3 className="text-lg font-semibold">Availability</h3>
+      <Row label="Timezone">
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={row.tz}
+          onChange={(e) => setRow({ ...row, tz: e.target.value })}
+          placeholder="America/Chicago"
+        />
+      </Row>
+      <div className="grid grid-cols-2 gap-3">
+        <Row label="Slot minutes">
+          <input
+            type="number"
+            className="w-full bg-white/5 border border-white/15 p-2 rounded"
+            value={row.slot_minutes}
+            onChange={(e) => setRow({ ...row, slot_minutes: Number(e.target.value) })}
+          />
+        </Row>
+        <Row label="Buffer minutes">
+          <input
+            type="number"
+            className="w-full bg-white/5 border border-white/15 p-2 rounded"
+            value={row.buffer_minutes}
+            onChange={(e) => setRow({ ...row, buffer_minutes: Number(e.target.value) })}
+          />
+        </Row>
+        <Row label="Min lead (hours)">
+          <input
+            type="number"
+            className="w-full bg-white/5 border border-white/15 p-2 rounded"
+            value={row.min_lead_hours}
+            onChange={(e) => setRow({ ...row, min_lead_hours: Number(e.target.value) })}
+          />
+        </Row>
+        <Row label="Window (days)">
+          <input
+            type="number"
+            className="w-full bg-white/5 border border-white/15 p-2 rounded"
+            value={row.booking_window_days}
+            onChange={(e) => setRow({ ...row, booking_window_days: Number(e.target.value) })}
+          />
+        </Row>
+      </div>
+
+      <div className="space-y-3">
+        {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((d) => (
+          <div key={d} className="rounded-xl bg-black/20 border border-white/10 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="capitalize font-semibold">{d}</div>
+              <button className="px-2 py-1 rounded bg-white text-black text-sm" onClick={() => addRange(d)}>
+                Add range
+              </button>
+            </div>
+            <div className="space-y-2">
+              {(row.weekly?.[d] || []).map((pair, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr,1fr,auto] gap-2">
+                  <input
+                    className="bg-white/5 border border-white/15 p-2 rounded"
+                    value={pair[0]}
+                    onChange={(e) => updateRange(d, idx, "start", e.target.value)}
+                    placeholder="09:00"
+                  />
+                  <input
+                    className="bg-white/5 border border-white/15 p-2 rounded"
+                    value={pair[1]}
+                    onChange={(e) => updateRange(d, idx, "end", e.target.value)}
+                    placeholder="18:00"
+                  />
+                  <button className="px-2 py-1 rounded bg-white/10" onClick={() => removeRange(d, idx)}>
+                    Delete
+                  </button>
+                </div>
+              ))}
+              {!(row.weekly?.[d] || []).length && <div className="text-white/60 text-sm">No hours</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h4 className="text-md font-semibold">Blackouts</h4>
+      <AdminBlackouts />
+
+      <button onClick={save} disabled={saving} className="mt-2 px-4 py-2 rounded-lg bg-white text-black">
+        {saving ? "Saving…" : "Save Availability"}
+      </button>
+    </div>
+  );
+}
+
+function AdminBlackouts() {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("mf_blackouts").select("*").order("start_utc", { ascending: true });
+      setRows(data || []);
+    })();
+  }, []);
+
+  async function add() {
+    const start = new Date().toISOString();
+    const end = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from("mf_blackouts")
+      .insert([{ start_utc: start, end_utc: end, reason: "Block" }])
+      .select()
+      .single();
+    if (!error) setRows((r) => [...r, data]);
+  }
+  async function update(id, patch) {
+    const { error } = await supabase.from("mf_blackouts").update(patch).eq("id", id);
+    if (!error) setRows((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }
+  async function remove(id) {
+    const { error } = await supabase.from("mf_blackouts").delete().eq("id", id);
+    if (!error) setRows((r) => r.filter((x) => x.id !== id));
+  }
+
+  return (
+    <div className="rounded-xl bg-black/20 border border-white/10 p-3 space-y-2">
+      <button className="px-3 py-1.5 rounded bg-white text-black" onClick={add}>
+        Add blackout
+      </button>
+      {rows.map((b) => (
+        <div key={b.id} className="grid sm:grid-cols-[1fr,1fr,1fr,auto] gap-2">
+          <input
+            className="bg-white/5 border border-white/15 p-2 rounded"
+            value={b.start_utc}
+            onChange={(e) => update(b.id, { start_utc: e.target.value })}
+          />
+          <input
+            className="bg-white/5 border border-white/15 p-2 rounded"
+            value={b.end_utc}
+            onChange={(e) => update(b.id, { end_utc: e.target.value })}
+          />
+          <input
+            className="bg-white/5 border border-white/15 p-2 rounded"
+            value={b.reason || ""}
+            onChange={(e) => update(b.id, { reason: e.target.value })}
+          />
+          <button className="px-2 py-1 rounded bg-white/10" onClick={() => remove(b.id)}>
+            Delete
+          </button>
+        </div>
+      ))}
+      {!rows.length && <div className="text-white/60 text-sm">No blackouts</div>}
+    </div>
+  );
+}
+
+/* ---------------- APPOINTMENTS ---------------- */
+function AdminAppointments() {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("mf_appointments")
+        .select("*")
+        .order("start_utc", { ascending: false })
+        .limit(500);
+      setRows(data || []);
+    })();
+  }, []);
+
+  async function updateStatus(id, status) {
+    const { error } = await supabase.from("mf_appointments").update({ status }).eq("id", id);
+    if (!error) setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <h3 className="text-lg font-semibold mb-3">Appointments</h3>
+      <div className="overflow-auto">
+        <table className="min-w-full text-sm">
+          <thead className="text-white/60">
+            <tr>
+              <th className="p-2 text-left">When (UTC)</th>
+              <th className="p-2 text-left">Name</th>
+              <th className="p-2 text-left">Email</th>
+              <th className="p-2 text-left">Phone</th>
+              <th className="p-2 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-white/10">
+                <td className="p-2">
+                  {new Date(r.start_utc).toLocaleString()} →{" "}
+                  {new Date(r.end_utc).toLocaleTimeString()}
+                </td>
+                <td className="p-2">{r.full_name || "-"}</td>
+                <td className="p-2">{r.email || "-"}</td>
+                <td className="p-2">{r.phone || "-"}</td>
+                <td className="p-2">
+                  <select
+                    className="bg-white/5 border border-white/15 p-1 rounded"
+                    value={r.status}
+                    onChange={(e) => updateStatus(r.id, e.target.value)}
+                  >
+                    {["scheduled", "canceled", "completed", "no-show"].map((s) => (
+                      <option key={s}>{s}</option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+            {!rows.length && (
+              <tr>
+                <td className="p-3 text-white/60" colSpan={5}>
+                  No appointments yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
