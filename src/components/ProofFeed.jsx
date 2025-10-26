@@ -37,10 +37,10 @@ const DEFAULT_AVATAR =
 /**
  * Props:
  * - items: [{display_name, message_text, happened_at, avatar_url, is_pinned}]
- * - visibleCount: number (default 10)
+ * - visibleCount: number (default 5)
  * - cycleMs: number (default 3000)
  */
-export default function ProofFeed({ items = [], visibleCount = 10, cycleMs = 3000 }) {
+export default function ProofFeed({ items = [], visibleCount = 5, cycleMs = 3000 }) {
   // Order: pinned first, then newest by happened_at desc
   const ordered = useMemo(() => {
     const clone = [...(items || [])];
@@ -55,15 +55,17 @@ export default function ProofFeed({ items = [], visibleCount = 10, cycleMs = 300
   }, [items]);
 
   const [offset, setOffset] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
   const canCycle = ordered.length > visibleCount;
 
   useEffect(() => {
-    if (!canCycle) return;
+    if (!canCycle || isPaused) return;
     const t = setInterval(() => {
       setOffset((o) => (o + 1) % ordered.length);
     }, cycleMs);
     return () => clearInterval(t);
-  }, [canCycle, ordered.length, cycleMs]);
+  }, [canCycle, isPaused, ordered.length, cycleMs]);
 
   // Rotate list by offset and take visibleCount
   const rotated = useMemo(() => {
@@ -74,13 +76,16 @@ export default function ProofFeed({ items = [], visibleCount = 10, cycleMs = 300
   }, [ordered, offset, visibleCount]);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+    <div
+      className="rounded-2xl border border-white/10 bg-white/5 p-3"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-base font-semibold">Recent Wins</h3>
-        <div className="text-xs text-white/50">{ordered.length} total</div>
+        {/* removed total counter */}
       </div>
 
-      {/* fixed window; list itself just re-renders the next window (fade for niceness) */}
       <ul className="space-y-2 transition-opacity duration-300 ease-in-out">
         {rotated.map((p, idx) => (
           <li
@@ -98,9 +103,13 @@ export default function ProofFeed({ items = [], visibleCount = 10, cycleMs = 300
                 {p.is_pinned ? (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/80">Pinned</span>
                 ) : null}
-                <span className="ml-auto text-xs text-white/50">{timeAgo(p.happened_at || p.created_at)}</span>
+                <span className="ml-auto text-xs text-white/50">
+                  {timeAgo(p.happened_at || p.created_at)}
+                </span>
               </div>
-              <div className="text-white/80 text-sm break-words">{p.message_text || ""}</div>
+              <div className="text-white/80 text-sm break-words">
+                {p.message_text || ""}
+              </div>
             </div>
           </li>
         ))}
@@ -110,7 +119,9 @@ export default function ProofFeed({ items = [], visibleCount = 10, cycleMs = 300
       </ul>
 
       {canCycle && (
-        <div className="text-[11px] text-white/50 mt-2">Auto-cycling through all posts…</div>
+        <div className="text-[11px] text-white/50 mt-2">
+          Auto-cycling through posts… {isPaused ? "(paused)" : ""}
+        </div>
       )}
     </div>
   );
