@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { supabase, uploadPublic } from "../lib/supabaseClient";
+import React, { useEffect, useState } from "react";
+import { supabase, uploadPublic } from "../lib/supabaseClient.js";
 
 export default function Admin() {
   const [tab, setTab] = useState("settings");
@@ -7,8 +7,8 @@ export default function Admin() {
     <div className="min-h-screen bg-[#1e1f22] text-white p-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex gap-2 mb-6">
-          {["settings", "questions", "proof", "leads"].map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg ${tab === t ? "bg-white text-black" : "bg-white/10"}`}>
+          {["settings", "questions", "proof"].map((t) => (
+            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg ${tab === t ? "bg:white bg-white text-black" : "bg-white/10"}`}>
               {t}
             </button>
           ))}
@@ -16,7 +16,6 @@ export default function Admin() {
         {tab === "settings" && <AdminSettings />}
         {tab === "questions" && <AdminQuestions />}
         {tab === "proof" && <AdminProof />}
-        {tab === "leads" && <AdminLeads />}
       </div>
     </div>
   );
@@ -43,15 +42,15 @@ function AdminSettings() {
   }, []);
 
   async function uploadLogo(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = await uploadPublic(file, "logos");
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const url = await uploadPublic(f, "logos");
     setS((x) => ({ ...x, logo_url: url }));
   }
   async function uploadHeadshot(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = await uploadPublic(file, "headshots");
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const url = await uploadPublic(f, "headshots");
     setS((x) => ({ ...x, headshot_url: url }));
   }
 
@@ -111,7 +110,7 @@ function AdminSettings() {
       </Row>
 
       <Row label="About Name">
-        <input className="w-full bg-white/5 border border-white/15 p-2 rounded"
+        <input className="w-full bg:white bg-white/5 border border-white/15 p-2 rounded"
           value={s.about_name || ""} onChange={(e) => setS({ ...s, about_name: e.target.value })} />
       </Row>
 
@@ -146,10 +145,7 @@ function AdminQuestions() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("mf_questions")
-        .select("*")
-        .order("sort_order", { ascending: true });
+      const { data } = await supabase.from("mf_questions").select("*").order("sort_order", { ascending: true });
       setList(data || []);
     })();
   }, []);
@@ -181,7 +177,6 @@ function AdminQuestions() {
   async function save() {
     setSaving(true);
     try {
-      // Upsert rows
       for (const q of list) {
         const row = { ...q };
         delete row._new;
@@ -382,50 +377,6 @@ function AdminProof() {
       <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-white text-black">
         {saving ? "Saving…" : "Save Proof"}
       </button>
-    </div>
-  );
-}
-
-function AdminLeads() {
-  const [rows, setRows] = useState([]);
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("mf_leads").select("*").order("submitted_at", { ascending: false }).limit(200);
-      setRows(data || []);
-    })();
-  }, []);
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <h3 className="text-lg font-semibold mb-3">Recent Leads</h3>
-      <div className="overflow-auto">
-        <table className="min-w-full text-sm">
-          <thead className="text-white/60">
-            <tr>
-              <th className="text-left p-2">When</th>
-              <th className="text-left p-2">Name</th>
-              <th className="text-left p-2">Email</th>
-              <th className="text-left p-2">Phone</th>
-              <th className="text-left p-2">UTM</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-white/10">
-                <td className="p-2">{new Date(r.submitted_at).toLocaleString()}</td>
-                <td className="p-2">{r.full_name || "-"}</td>
-                <td className="p-2">{r.email || "-"}</td>
-                <td className="p-2">{r.phone || "-"}</td>
-                <td className="p-2">
-                  <pre className="whitespace-pre-wrap text-white/70">{JSON.stringify(r.utm || {}, null, 0)}</pre>
-                </td>
-              </tr>
-            ))}
-            {!rows.length && (
-              <tr><td className="p-3 text-white/60" colSpan={5}>No leads yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
