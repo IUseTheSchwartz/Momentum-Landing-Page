@@ -1,15 +1,8 @@
 [build]
-  command = "npm run build"
+  command = "bash -lc 'pwd && ls -la && node -v && npm -v && echo --- && cat package.json && echo --- && npm ci && npm run build'"
   publish = "dist"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-  X-Frame-Options = "SAMEORIGIN"
-  X-Content-Type-Options = "nosniff"
-  Referrer-Policy = "strict-origin-when-cross-origin"
