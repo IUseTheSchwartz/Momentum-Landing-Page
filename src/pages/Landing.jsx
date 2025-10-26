@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
-import { readUTM } from "../lib/utm";
-import ProofFeed from "../components/ProofFeed";
-import QualifyForm from "../components/QualifyForm";
+import { supabase } from "../lib/supabaseClient.js";
+import { readUTM } from "../lib/utm.js";
+import ProofFeed from "../components/ProofFeed.jsx";
+import QualifyForm from "../components/QualifyForm.jsx";
 
 export default function Landing() {
   const [settings, setSettings] = useState(null);
   const [proof, setProof] = useState([]);
   const [questions, setQuestions] = useState([]);
 
-  // Fetch public data
   useEffect(() => {
     (async () => {
       const { data: s } = await supabase.from("mf_site_settings").select("*").limit(1).maybeSingle();
@@ -35,20 +34,14 @@ export default function Landing() {
   }, [settings]);
 
   async function submitLead(values) {
-    // Map question answers
     const answers = Object.entries(values).map(([question_id, value]) => ({ question_id, value }));
     const utm = readUTM();
-
-    // Optional: pull basic identity from questions if you included inputs for name/email/phone
-    const full_name = answers.find((a) => a.question_id === "full_name")?.value || null;
-    const email = answers.find((a) => a.question_id === "email")?.value || null;
-    const phone = answers.find((a) => a.question_id === "phone")?.value || null;
+    const full_name = answers.find((a) => a.question_id === "Full Name")?.value || null;
+    const email = answers.find((a) => a.question_id === "Email")?.value || null;
+    const phone = answers.find((a) => a.question_id === "Phone")?.value || null;
 
     const { error } = await supabase.from("mf_leads").insert([{ full_name, email, phone, answers, utm }]);
-    if (error) {
-      alert("Submission failed. Try again.");
-      return;
-    }
+    if (error) return alert("Submission failed. Try again.");
     alert("Submitted — we’ll review and reach out.");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -71,7 +64,6 @@ export default function Landing() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-24">
-        {/* Hero */}
         <section className="py-10">
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
             {settings?.hero_title || "We build closers"}
@@ -82,7 +74,6 @@ export default function Landing() {
             <div className="sm:col-span-2">
               <ProofFeed items={proof} />
             </div>
-
             <aside id="apply" className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <h3 className="text-lg font-semibold">Apply to Book a Call</h3>
               <p className="text-sm text-white/70 mb-3">
@@ -93,7 +84,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* About */}
         <section className="mt-16 grid gap-6 sm:grid-cols-[160px,1fr] items-start">
           {settings?.headshot_url ? (
             <img src={settings.headshot_url} alt="headshot" className="h-40 w-40 rounded-2xl object-cover" />
@@ -106,7 +96,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Disclaimer */}
         <section className="mt-16">
           <h2 className="text-xl font-bold">Disclaimer</h2>
           <p className="text-sm text-white/60 mt-2">
