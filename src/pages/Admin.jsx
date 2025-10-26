@@ -48,7 +48,7 @@ function Row({ label, children }) {
   );
 }
 
-/* ---------------- SETTINGS (with upload -> auto-save URL) ---------------- */
+/* ---------------- SETTINGS ---------------- */
 function AdminSettings() {
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -87,7 +87,7 @@ function AdminSettings() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const url = await uploadPublic(file, folder); // momentum-public bucket
+      const url = await uploadPublic(file, folder);
       await savePartial({ [field]: url });
     } catch (err) {
       console.error(err);
@@ -374,7 +374,7 @@ function AdminQuestions() {
   );
 }
 
-/* ---------------- PROOF (CLEAN & LABELED, WITH DEFAULT AVATAR) ---------------- */
+/* ---------------- PROOF (NO AMOUNT) ---------------- */
 function AdminProof() {
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -393,7 +393,6 @@ function AdminProof() {
         id: crypto.randomUUID(),
         display_name: "New",
         message_text: "Closed FE policy",
-        amount_cents: 120000,
         happened_at: new Date().toISOString(),
         is_published: true,
         is_pinned: false,
@@ -488,17 +487,13 @@ function AdminProof() {
         const avatarId = `avatar_${it.id}`;
         const ssId = `screenshot_${it.id}`;
         const nameId = `name_${it.id}`;
-        const amtId = `amt_${it.id}`;
         const whenId = `when_${it.id}`;
         const msgId = `msg_${it.id}`;
         const pubId = `pub_${it.id}`;
         const pinId = `pin_${it.id}`;
 
         return (
-          <div
-            key={it.id}
-            className="rounded-xl bg-black/20 p-3 border border-white/10 space-y-3"
-          >
+          <div key={it.id} className="rounded-xl bg-black/20 p-3 border border-white/10 space-y-3">
             {/* Uploads Row */}
             <div className="grid sm:grid-cols-2 gap-3">
               <label htmlFor={avatarId} className="text-xs text-white/60">
@@ -540,8 +535,8 @@ function AdminProof() {
               </label>
             </div>
 
-            {/* Labeled Inputs Row */}
-            <div className="grid sm:grid-cols-3 gap-3">
+            {/* Labeled Inputs Row (no amount) */}
+            <div className="grid sm:grid-cols-2 gap-3">
               <label htmlFor={nameId} className="text-xs text-white/60">
                 Display name
                 <input
@@ -553,23 +548,6 @@ function AdminProof() {
                 />
               </label>
 
-              <label htmlFor={amtId} className="text-xs text-white/60">
-                Amount (USD)
-                <input
-                  id={amtId}
-                  type="number"
-                  step="1"
-                  min="0"
-                  className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
-                  placeholder="e.g., 1200"
-                  value={Number((it.amount_cents || 0) / 100)}
-                  onChange={(e) =>
-                    update(i, { amount_cents: Math.round(Number(e.target.value || 0) * 100) })
-                  }
-                />
-                <div className="text-[11px] text-white/50 mt-1">Stored as cents for accuracy.</div>
-              </label>
-
               <label htmlFor={whenId} className="text-xs text-white/60">
                 When (local)
                 <input
@@ -579,9 +557,7 @@ function AdminProof() {
                   value={toLocalDtValue(it.happened_at)}
                   onChange={(e) => update(i, { happened_at: fromLocalDtValue(e.target.value) })}
                 />
-                <div className="text-[11px] text-white/50 mt-1">
-                  Saved as ISO (UTC) under the hood.
-                </div>
+                <div className="text-[11px] text-white/50 mt-1">Saved as ISO (UTC) under the hood.</div>
               </label>
             </div>
 
@@ -692,7 +668,6 @@ function AdminLeads() {
 function AdminAvailability() {
   const [row, setRow] = useState(null);
   const [saving, setSaving] = useState(false);
-  const weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
   useEffect(() => {
     (async () => {
