@@ -1,3 +1,4 @@
+// File: src/pages/Admin.jsx
 import React, { useEffect, useState } from "react";
 import { supabase, uploadPublic } from "../lib/supabaseClient.js";
 
@@ -299,34 +300,43 @@ function AdminQuestions() {
       {list.map((q, i) => (
         <div key={q.id} className="rounded-xl bg-black/20 p-3 border border-white/10">
           <div className="grid sm:grid-cols-2 gap-2">
-            <input
-              className="bg-white/5 border border-white/15 p-2 rounded"
-              value={q.question_text}
-              onChange={(e) => update(i, { question_text: e.target.value })}
-            />
-            <select
-              className="bg-white/5 border border-white/15 p-2 rounded"
-              value={q.input_type}
-              onChange={(e) => update(i, { input_type: e.target.value })}
-            >
-              {["text", "textarea", "number", "email", "phone", "select", "radio", "checkbox"].map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
+            <label className="text-xs text-white/60">
+              Question
+              <input
+                className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
+                value={q.question_text}
+                onChange={(e) => update(i, { question_text: e.target.value })}
+              />
+            </label>
+            <label className="text-xs text-white/60">
+              Input type
+              <select
+                className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
+                value={q.input_type}
+                onChange={(e) => update(i, { input_type: e.target.value })}
+              >
+                {["text", "textarea", "number", "email", "phone", "select", "radio", "checkbox"].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </label>
           </div>
-          <input
-            className="mt-2 w-full bg-white/5 border border-white/15 p-2 rounded"
-            placeholder="Options (comma-separated, for select/radio)"
-            value={(q.input_options || []).join(",")}
-            onChange={(e) =>
-              update(i, {
-                input_options: e.target.value
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              })
-            }
-          />
+          <label className="text-xs text-white/60 block mt-2">
+            Options (comma-separated, for select/radio)
+            <input
+              className="mt-1 w-full bg-white/5 border border-white/15 p-2 rounded"
+              placeholder="Yes,No"
+              value={(q.input_options || []).join(",")}
+              onChange={(e) =>
+                update(i, {
+                  input_options: e.target.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                })
+              }
+            />
+          </label>
           <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
             <label className="flex items-center gap-2">
               <input
@@ -344,13 +354,15 @@ function AdminQuestions() {
               />{" "}
               Active
             </label>
-            <input
-              type="number"
-              className="bg-white/5 border border-white/15 p-2 rounded"
-              value={q.sort_order || 0}
-              onChange={(e) => update(i, { sort_order: Number(e.target.value) })}
-              title="Order"
-            />
+            <label className="text-xs text-white/60">
+              Order
+              <input
+                type="number"
+                className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
+                value={q.sort_order || 0}
+                onChange={(e) => update(i, { sort_order: Number(e.target.value) })}
+              />
+            </label>
           </div>
         </div>
       ))}
@@ -362,7 +374,7 @@ function AdminQuestions() {
   );
 }
 
-/* ---------------- PROOF ---------------- */
+/* ---------------- PROOF (CLEAN & LABELED) ---------------- */
 function AdminProof() {
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -399,12 +411,37 @@ function AdminProof() {
   }
 
   async function uploadAvatar(i, file) {
+    if (!file) return;
     const url = await uploadPublic(file, "avatars");
     update(i, { avatar_url: url });
   }
   async function uploadScreenshot(i, file) {
+    if (!file) return;
     const url = await uploadPublic(file, "screenshots");
     update(i, { screenshot_url: url });
+  }
+
+  function toLocalDtValue(iso) {
+    // Convert ISO -> "YYYY-MM-DDTHH:mm" (no seconds, no Z) for <input type="datetime-local">
+    try {
+      const d = iso ? new Date(iso) : new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const yyyy = d.getFullYear();
+      const mm = pad(d.getMonth() + 1);
+      const dd = pad(d.getDate());
+      const hh = pad(d.getHours());
+      const mi = pad(d.getMinutes());
+      return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+    } catch {
+      return "";
+    }
+  }
+  function fromLocalDtValue(local) {
+    // Interpret local datetime as local time and convert to ISO
+    if (!local) return new Date().toISOString();
+    const d = new Date(local);
+    // Adjust to ISO with local offset applied
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
   }
 
   async function save() {
@@ -439,73 +476,148 @@ function AdminProof() {
         </button>
       </div>
 
-      {items.map((it, i) => (
-        <div
-          key={it.id}
-          className="rounded-xl bg-black/20 p-3 border border-white/10 grid sm:grid-cols-[80px,1fr] gap-3"
-        >
-          <div className="space-y-2">
-            <input type="file" onChange={(e) => uploadAvatar(i, e.target.files?.[0])} />
-            {it.avatar_url && <img src={it.avatar_url} className="h-16 w-16 rounded-full object-cover" />}
-          </div>
-          <div className="space-y-2">
-            <div className="grid sm:grid-cols-3 gap-2">
-              <input
-                className="bg-white/5 border border-white/15 p-2 rounded"
-                placeholder="Name"
-                value={it.display_name || ""}
-                onChange={(e) => update(i, { display_name: e.target.value })}
-              />
-              <input
-                className="bg-white/5 border border-white/15 p-2 rounded"
-                placeholder="Amount (USD)"
-                value={Number((it.amount_cents || 0) / 100)}
-                onChange={(e) =>
-                  update(i, { amount_cents: Math.round(Number(e.target.value || 0) * 100) })
-                }
-              />
-              <input
-                className="bg-white/5 border border-white/15 p-2 rounded"
-                placeholder="When (ISO)"
-                value={it.happened_at || ""}
-                onChange={(e) => update(i, { happened_at: e.target.value })}
-              />
-            </div>
-            <textarea
-              className="w-full bg-white/5 border border-white/15 p-2 rounded"
-              placeholder="Message text"
-              value={it.message_text || ""}
-              onChange={(e) => update(i, { message_text: e.target.value })}
-            />
-            <div className="flex items-center gap-3 text-sm">
-              <label className="flex items-center gap-2">
+      {items.map((it, i) => {
+        const avatarId = `avatar_${it.id}`;
+        const ssId = `screenshot_${it.id}`;
+        const nameId = `name_${it.id}`;
+        const amtId = `amt_${it.id}`;
+        const whenId = `when_${it.id}`;
+        const msgId = `msg_${it.id}`;
+        const pubId = `pub_${it.id}`;
+        const pinId = `pin_${it.id}`;
+
+        return (
+          <div
+            key={it.id}
+            className="rounded-xl bg-black/20 p-3 border border-white/10 space-y-3"
+          >
+            {/* Uploads Row */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label htmlFor={avatarId} className="text-xs text-white/60">
+                Avatar (upload)
                 <input
+                  id={avatarId}
+                  type="file"
+                  accept="image/*"
+                  className="mt-1 block w-full text-sm"
+                  onChange={(e) => uploadAvatar(i, e.target.files?.[0])}
+                />
+                {it.avatar_url && (
+                  <div className="mt-2">
+                    <img
+                      src={it.avatar_url}
+                      className="h-16 w-16 rounded-full object-cover border border-white/10"
+                      alt="avatar preview"
+                    />
+                  </div>
+                )}
+              </label>
+
+              <label htmlFor={ssId} className="text-xs text-white/60">
+                Screenshot (upload)
+                <input
+                  id={ssId}
+                  type="file"
+                  accept="image/*"
+                  className="mt-1 block w-full text-sm"
+                  onChange={(e) => uploadScreenshot(i, e.target.files?.[0])}
+                />
+                {it.screenshot_url && (
+                  <div className="mt-2">
+                    <img
+                      src={it.screenshot_url}
+                      alt="screenshot preview"
+                      className="rounded-lg border border-white/10 max-h-40"
+                    />
+                  </div>
+                )}
+              </label>
+            </div>
+
+            {/* Labeled Inputs Row */}
+            <div className="grid sm:grid-cols-3 gap-3">
+              <label htmlFor={nameId} className="text-xs text-white/60">
+                Display name
+                <input
+                  id={nameId}
+                  className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
+                  placeholder="e.g., Logan H."
+                  value={it.display_name || ""}
+                  onChange={(e) => update(i, { display_name: e.target.value })}
+                />
+              </label>
+
+              <label htmlFor={amtId} className="text-xs text-white/60">
+                Amount (USD)
+                <input
+                  id={amtId}
+                  type="number"
+                  step="1"
+                  min="0"
+                  className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
+                  placeholder="e.g., 1200"
+                  value={Number((it.amount_cents || 0) / 100)}
+                  onChange={(e) =>
+                    update(i, { amount_cents: Math.round(Number(e.target.value || 0) * 100) })
+                  }
+                />
+                <div className="text-[11px] text-white/50 mt-1">Stored as cents for accuracy.</div>
+              </label>
+
+              <label htmlFor={whenId} className="text-xs text-white/60">
+                When (local)
+                <input
+                  id={whenId}
+                  type="datetime-local"
+                  className="mt-1 bg-white/5 border border-white/15 p-2 rounded w-full"
+                  value={toLocalDtValue(it.happened_at)}
+                  onChange={(e) => update(i, { happened_at: fromLocalDtValue(e.target.value) })}
+                />
+                <div className="text-[11px] text-white/50 mt-1">
+                  Saved as ISO (UTC) under the hood.
+                </div>
+              </label>
+            </div>
+
+            <label htmlFor={msgId} className="text-xs text-white/60 block">
+              Message text
+              <textarea
+                id={msgId}
+                className="mt-1 w-full bg-white/5 border border-white/15 p-2 rounded"
+                placeholder="Short highlight / context"
+                value={it.message_text || ""}
+                onChange={(e) => update(i, { message_text: e.target.value })}
+              />
+            </label>
+
+            <div className="grid sm:grid-cols-3 gap-3 text-sm">
+              <label htmlFor={pubId} className="flex items-center gap-2">
+                <input
+                  id={pubId}
                   type="checkbox"
                   checked={!!it.is_published}
                   onChange={(e) => update(i, { is_published: e.target.checked })}
-                />{" "}
-                Published
+                />
+                <span>Published</span>
               </label>
-              <label className="flex items-center gap-2">
+
+              <label htmlFor={pinId} className="flex items-center gap-2">
                 <input
+                  id={pinId}
                   type="checkbox"
                   checked={!!it.is_pinned}
                   onChange={(e) => update(i, { is_pinned: e.target.checked })}
-                />{" "}
-                Pinned
+                />
+                <span>Pinned</span>
               </label>
-              <input type="file" onChange={(e) => uploadScreenshot(i, e.target.files?.[0])} />
+
+              <div className="text-white/60 text-xs self-center">
+                Tip: Pin 1–2 top posts to show first.
+              </div>
             </div>
-            {it.screenshot_url && (
-              <img
-                src={it.screenshot_url}
-                alt="screenshot"
-                className="rounded-lg border border-white/10 max-h-40"
-              />
-            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-white text-black">
         {saving ? "Saving…" : "Save Proof"}
@@ -593,8 +705,7 @@ function AdminAvailability() {
           booking_window_days: 14,
           weekly: {
             mon: [["09:00", "18:00"]],
-            tue: [["09:00", "18:00"]],
-            wed: [["09:00", "18:00"]],
+            tue: [["09:00", "18:00"]],            wed: [["09:00", "18:00"]],
             thu: [["09:00", "18:00"]],
             fri: [["09:00", "18:00"]],
             sat: [],
