@@ -1,25 +1,13 @@
 // netlify/functions/ingest-proof.js
 import { createClient } from "@supabase/supabase-js";
 
-export default async (req, res) => {
-  const startedAt = new Date().toISOString();
+export async function handler(event, context) {
   try {
-    // ---- entry logs ----
-    console.log("🔔 ingest-proof HIT", {
-      startedAt,
-      method: req.method,
-      url: req.url,
-      ip: req.headers["x-forwarded-for"] || req.socket?.remoteAddress,
-      ua: req.headers["user-agent"],
-      contentType: req.headers["content-type"],
-      contentLength: req.headers["content-length"],
-    });
-
-    if (req.method !== "POST") {
-      console.warn("⛔ 405 method not allowed:", req.method);
-      return res.status(405).json({ error: "Method not allowed" });
+    if (event.httpMethod !== "POST") {
+      return json(405, { error: "Method not allowed" });
     }
 
+    const body = safeJson(event.body);
     const {
       discord_message_id,
       discord_user_id,
@@ -30,51 +18,30 @@ export default async (req, res) => {
       roles = [],
       client_auto_publish = false,
       shared_secret,
-    } = req.body || {};
-
-    // safe body preview (no secret)
-    console.log("🧾 body preview", {
-      hasBody: !!req.body,
-      discord_message_id,
-      discord_user_id,
-      display_name,
-      avatar_present: !!avatar_url,
-      message_len: (message_text || "").length,
-      roles_count: Array.isArray(roles) ? roles.length : 0,
-      client_auto_publish,
-      timestamp,
-      secret_supplied: Boolean(shared_secret), // do not log the value
-    });
+    } = body || {};
 
     if (!shared_secret || shared_secret !== process.env.PROOF_INGEST_SECRET) {
-      console.warn("🔒 unauthorized: bad or missing shared_secret");
-      return res.status(401).json({ error: "Unauthorized" });
+      console.warn("Unauthorized ingest attempt");
+      return json(401, { error: "Unauthorized" });
     }
     if (!discord_message_id || !discord_user_id || !message_text) {
-      console.warn("⚠️ 400 missing required fields");
-      return res.status(400).json({ error: "Missing fields" });
+      return json(400, { error: "Missing fields" });
     }
 
-    // publish policy
+    // Decide publish policy (server-side)
     const roleNames = (roles || []).map((r) => (r || "").toString());
     const allowAuto = ["Manager", "Closer"];
     const is_published =
       client_auto_publish || roleNames.some((r) => allowAuto.includes(r));
 
-    console.log("🧮 publish decision", {
-      client_auto_publish,
-      roleNames,
-      allowAuto,
-      is_published,
-    });
-
-    // Supabase client
+    // Supabase (service role) — set these in Netlify env
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE;
     const sb = createClient(url, key);
 
     const happened_at = timestamp || new Date().toISOString();
 
+    // Upsert by discord_message_id (requires a unique index on that column)
     const row = {
       discord_message_id: discord_message_id.toString(),
       discord_user_id: discord_user_id.toString(),
@@ -86,10 +53,9 @@ export default async (req, res) => {
       is_pinned: false,
     };
 
-    // trim what we log to keep things readable
-    console.log("⬆️ upserting row", {
+    console.log("Ingest row (sanitized):", {
       ...row,
-      message_text: `${row.message_text.slice(0, 140)}${row.message_text.length > 140 ? "…" : ""}`,
+      message_text: `${row.message_text.slice(0, 60)}...`,
     });
 
     const { data, error } = await sb
@@ -99,18 +65,30 @@ export default async (req, res) => {
       .single();
 
     if (error) {
-      console.error("🟥 supabase error", { code: error.code, message: error.message, details: error.details });
-      return res.status(500).json({ error: error.message });
+      console.error("Supabase error:", error);
+      return json(500, { error: error.message });
     }
 
-    console.log("🟩 supabase upsert OK", { id: data?.id, discord_message_id: row.discord_message_id });
-
-    const finishedAt = new Date().toISOString();
-    console.log("✅ ingest-proof DONE", { startedAt, finishedAt });
-
-    return res.status(200).json({ ok: true, id: data?.id });
+    console.log("Ingest OK id:", data?.id);
+    return json(200, { ok: true, id: data?.id });
   } catch (e) {
-    console.error("🟥 server error", { message: e?.message, stack: e?.stack });
-    return res.status(500).json({ error: "Server error" });
+    console.error("Server error:", e);
+    return json(500, { error: "Server error" });
   }
-};
+}
+
+// --- helpers ---
+function json(statusCode, obj) {
+  return {
+    statusCode,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(obj),
+  };
+}
+function safeJson(s) {
+  try {
+    return JSON.parse(s || "{}");
+  } catch {
+    return {};
+  }
+}
