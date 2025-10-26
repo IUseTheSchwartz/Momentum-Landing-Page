@@ -1,3 +1,4 @@
+// File: src/pages/Landing.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import { readUTM } from "../lib/utm.js";
@@ -31,7 +32,10 @@ export default function Landing() {
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
       setQuestions(q || []);
-      const { data: p } = await supabase.from("mf_proof_posts").select("*").eq("is_published", true);
+      const { data: p } = await supabase
+        .from("mf_proof_posts")
+        .select("*")
+        .eq("is_published", true);
       setProof(p || []);
     })();
   }, []);
@@ -99,7 +103,10 @@ export default function Landing() {
               out.push({
                 startUtc: slotStart.toISOString(),
                 endUtc: slotEnd.toISOString(),
-                labelLocal: slotStart.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }),
+                labelLocal: slotStart.toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }),
                 labelTz: `Ends ${slotEnd.toLocaleTimeString(undefined, { timeStyle: "short" })}`,
               });
             }
@@ -126,7 +133,9 @@ export default function Landing() {
           ) : (
             <div className="h-9 w-32 bg-white/10 rounded" />
           )}
-          <span className="text-white/60">{settings?.site_name || "Momentum Financial"}</span>
+          <span className="text-white/60">
+            {settings?.site_name || "Momentum Financial"}
+          </span>
         </div>
         <a
           href="#apply"
@@ -141,84 +150,67 @@ export default function Landing() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-24">
+        {/* HERO */}
         <section className="py-10">
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
             {settings?.hero_title || "We build closers"}
           </h1>
-          <p className="mt-3 text-white/70 text-lg">{settings?.hero_sub || "High standards. High pay. No excuses."}</p>
+          <p className="mt-3 text-white/70 text-lg">
+            {settings?.hero_sub || "High standards. High pay. No excuses."}
+          </p>
 
-          <div className="mt-6 grid gap-6 sm:grid-cols-3">
-            <div className="sm:col-span-2">
+        {/* PROOF + CTA (no sidebar form) */}
+          <div className="mt-6 grid gap-6">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
               <ProofFeed items={proof} />
             </div>
-            <aside id="apply" className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <h3 className="text-lg font-semibold">Apply to Book a Call</h3>
-              <p className="text-sm text-white/70 mb-3">
-                We only take driven, coachable people. If that’s you, answer honestly.
-              </p>
-              <QualifyForm
-                questions={questions}
-                onSubmit={async (values) => {
-                  const answers = questions.map((q) => ({
-                    question_id: q.id,
-                    question: q.question_text,
-                    value: values[q.id] || "",
-                  }));
-                  const utm = readUTM();
-                  const full_name = answers.find((a) => /full name/i.test(a.question))?.value || null;
-                  const email = answers.find((a) => /^email$/i.test(a.question))?.value || null;
-                  const phone = answers.find((a) => /^phone$/i.test(a.question))?.value || null;
 
-                  const { error } = await supabase
-                    .from("mf_leads")
-                    .insert([{ full_name, email, phone, answers, utm }]);
-                  if (error) return alert("Submission failed. Try again.");
-
-                  // Email via SMTP (Mailjet) - safe no-op if env not set
-                  await fetch("/.netlify/functions/send-email", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      to: settings?.notify_emails || "",
-                      subject: `New lead — ${full_name || "Unknown"}`,
-                      text: [
-                        `New Lead from Momentum Financial`,
-                        `Name: ${full_name || "-"}`,
-                        `Email: ${email || "-"}`,
-                        `Phone: ${phone || "-"}`,
-                        "",
-                        "Answers:",
-                        ...answers.map((a) => `- ${a.question || a.question_id}: ${a.value}`),
-                        "",
-                        `UTM: ${JSON.stringify(utm || {})}`
-                      ].join("\n")
-                    }),
-                  });
-
-                  alert("Submitted — we’ll review and reach out.");
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-              />
-            </aside>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div>
+                <h3 className="text-lg font-semibold">Ready to apply?</h3>
+                <p className="text-sm text-white/70">
+                  Click “Book Now” to answer a few quick questions and pick a
+                  time. No side forms — straight to the point.
+                </p>
+              </div>
+              <button
+                onClick={() => setOpen(true)}
+                className="rounded-lg bg-white text-black px-4 py-2 font-semibold w-full sm:w-auto"
+              >
+                Book Now
+              </button>
+            </div>
           </div>
         </section>
 
+        {/* ABOUT */}
         <section className="mt-16 grid gap-6 sm:grid-cols-[160px,1fr] items-start">
           {settings?.headshot_url ? (
-            <img src={settings.headshot_url} alt="headshot" className="h-40 w-40 rounded-2xl object-cover" />
+            <img
+              src={settings.headshot_url}
+              alt="headshot"
+              className="h-40 w-40 rounded-2xl object-cover"
+            />
           ) : (
             <div className="h-40 w-40 rounded-2xl bg-white/10" />
           )}
           <div>
-            <h2 className="text-xl font-bold">About {settings?.about_name || "Your Mentor"}</h2>
-            <p className="text-white/80 mt-2">{settings?.about_bio || "Upload headshot and edit this in Admin."}</p>
+            <h2 className="text-xl font-bold">
+              About {settings?.about_name || "Your Mentor"}
+            </h2>
+            <p className="text-white/80 mt-2">
+              {settings?.about_bio || "Upload headshot and edit this in Admin."}
+            </p>
           </div>
         </section>
 
+        {/* DISCLAIMER */}
         <section className="mt-16">
           <h2 className="text-xl font-bold">Disclaimer</h2>
           <p className="text-sm text-white/60 mt-2">
-            This is an independent contractor opportunity. Earnings are commission-based and vary by individual effort,
-            skill, and market conditions. No guarantees of income. You must be 18+.
+            This is an independent contractor opportunity. Earnings are
+            commission-based and vary by individual effort, skill, and market
+            conditions. No guarantees of income. You must be 18+.
           </p>
         </section>
       </main>
@@ -232,7 +224,10 @@ export default function Landing() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold">Apply to Book a Call</h3>
-                  <button onClick={() => setOpen(false)} className="text-white/60 hover:text-white">
+                  <button
+                    onClick={() => setOpen(false)}
+                    className="text-white/60 hover:text-white"
+                  >
                     ✕
                   </button>
                 </div>
@@ -245,9 +240,15 @@ export default function Landing() {
                       value: values[q.id] || "",
                     }));
                     const utm = readUTM();
-                    const full_name = answers.find((a) => /full name/i.test(a.question))?.value || null;
-                    const email = answers.find((a) => /^email$/i.test(a.question))?.value || null;
-                    const phone = answers.find((a) => /^phone$/i.test(a.question))?.value || null;
+                    const full_name =
+                      answers.find((a) => /full name/i.test(a.question))?.value ||
+                      null;
+                    const email =
+                      answers.find((a) => /^email$/i.test(a.question))?.value ||
+                      null;
+                    const phone =
+                      answers.find((a) => /^phone$/i.test(a.question))?.value ||
+                      null;
 
                     // Insert lead
                     const { error } = await supabase
@@ -258,7 +259,7 @@ export default function Landing() {
                       return;
                     }
 
-                    // Email "new lead" via SMTP (Mailjet)
+                    // Email "new lead" via SMTP (Mailjet) - safe no-op if env not set
                     await fetch("/.netlify/functions/send-email", {
                       method: "POST",
                       body: JSON.stringify({
@@ -271,10 +272,12 @@ export default function Landing() {
                           `Phone: ${phone || "-"}`,
                           "",
                           "Answers:",
-                          ...answers.map((a) => `- ${a.question || a.question_id}: ${a.value}`),
+                          ...answers.map(
+                            (a) => `- ${a.question || a.question_id}: ${a.value}`
+                          ),
                           "",
-                          `UTM: ${JSON.stringify(utm || {})}`
-                        ].join("\n")
+                          `UTM: ${JSON.stringify(utm || {})}`,
+                        ].join("\n"),
                       }),
                     });
 
@@ -300,7 +303,9 @@ export default function Landing() {
                   </button>
                 </div>
                 {!slots.length ? (
-                  <div className="text-white/70">No slots available. Try different days.</div>
+                  <div className="text-white/70">
+                    No slots available. Try different days.
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-auto">
                     {slots.map((slt) => (
@@ -319,17 +324,19 @@ export default function Landing() {
                             timezone: settings?.brand_tz || "America/Chicago",
                           };
                           // Insert appointment (unique index prevents double-book)
-                          const { error } = await supabase.from("mf_appointments").insert([
-                            {
-                              full_name: appt.full_name,
-                              email: appt.email,
-                              phone: appt.phone,
-                              answers: appt.answers,
-                              start_utc: appt.start_utc,
-                              end_utc: appt.end_utc,
-                              timezone: appt.timezone,
-                            },
-                          ]);
+                          const { error } = await supabase
+                            .from("mf_appointments")
+                            .insert([
+                              {
+                                full_name: appt.full_name,
+                                email: appt.email,
+                                phone: appt.phone,
+                                answers: appt.answers,
+                                start_utc: appt.start_utc,
+                                end_utc: appt.end_utc,
+                                timezone: appt.timezone,
+                              },
+                            ]);
                           if (error) {
                             alert("Slot just got taken. Pick another.");
                             setBooking(false);
@@ -341,18 +348,25 @@ export default function Landing() {
                             method: "POST",
                             body: JSON.stringify({
                               to: settings?.notify_emails || "",
-                              subject: `New appointment — ${leadDraft?.full_name || "Unknown"} — ${slt.startUtc}`,
+                              subject: `New appointment — ${
+                                leadDraft?.full_name || "Unknown"
+                              } — ${slt.startUtc}`,
                               text: [
                                 `New Appointment`,
                                 `Name: ${leadDraft?.full_name || "-"}`,
                                 `Email: ${leadDraft?.email || "-"}`,
                                 `Phone: ${leadDraft?.phone || "-"}`,
                                 `When (UTC): ${slt.startUtc} → ${slt.endUtc}`,
-                                `Organizer TZ: ${settings?.brand_tz || "America/Chicago"}`,
+                                `Organizer TZ: ${
+                                  settings?.brand_tz || "America/Chicago"
+                                }`,
                                 "",
                                 "Answers:",
-                                ...(leadDraft?.answers || []).map((a) => `- ${a.question || a.question_id}: ${a.value}`)
-                              ].join("\n")
+                                ...(leadDraft?.answers || []).map(
+                                  (a) =>
+                                    `- ${a.question || a.question_id}: ${a.value}`
+                                ),
+                              ].join("\n"),
                             }),
                           });
 
@@ -375,7 +389,7 @@ export default function Landing() {
                           setOpen(false);
                           setBooking(false);
                         }}
-                        className="rounded-lg border border-white/15 bg:white/5 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
+                        className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
                       >
                         <div className="font-semibold">{slt.labelLocal}</div>
                         <div className="text-xs text-white/60">{slt.labelTz}</div>
