@@ -1,13 +1,24 @@
-// netlify/functions/ingest-proof.js
 import { createClient } from "@supabase/supabase-js";
 
-export async function handler(event, context) {
+export default async (req) => {
   try {
-    if (event.httpMethod !== "POST") {
-      return json(405, { error: "Method not allowed" });
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: { "content-type": "application/json" },
+      });
     }
 
-    const body = safeJson(event.body);
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
     const {
       discord_message_id,
       discord_user_id,
@@ -21,42 +32,46 @@ export async function handler(event, context) {
     } = body || {};
 
     if (!shared_secret || shared_secret !== process.env.PROOF_INGEST_SECRET) {
-      console.warn("Unauthorized ingest attempt");
-      return json(401, { error: "Unauthorized" });
-    }
-    if (!discord_message_id || !discord_user_id || !message_text) {
-      return json(400, { error: "Missing fields" });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      });
     }
 
-    // Decide publish policy (server-side)
+    if (!discord_message_id || !discord_user_id || !message_text) {
+      return new Response(
+        JSON.stringify({ error: "Missing fields: discord_message_id, discord_user_id, message_text" }),
+        { status: 400, headers: { "content-type": "application/json" } }
+      );
+    }
+
     const roleNames = (roles || []).map((r) => (r || "").toString());
     const allowAuto = ["Manager", "Closer"];
-    const is_published =
-      client_auto_publish || roleNames.some((r) => allowAuto.includes(r));
+    const is_published = client_auto_publish || roleNames.some((r) => allowAuto.includes(r));
 
-    // Supabase (service role) — set these in Netlify env
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE;
+    if (!url || !key) {
+      return new Response(
+        JSON.stringify({ error: "Supabase env missing", haveUrl: !!url, haveServiceRole: !!key }),
+        { status: 500, headers: { "content-type": "application/json" } }
+      );
+    }
     const sb = createClient(url, key);
 
     const happened_at = timestamp || new Date().toISOString();
 
-    // Upsert by discord_message_id (requires a unique index on that column)
     const row = {
-      discord_message_id: discord_message_id.toString(),
-      discord_user_id: discord_user_id.toString(),
+      discord_message_id: String(discord_message_id),
+      discord_user_id: String(discord_user_id),
       display_name: display_name || null,
       avatar_url: avatar_url || null,
-      message_text: (message_text || "").slice(0, 2000),
+      message_text: String(message_text).slice(0, 2000),
       happened_at,
       is_published,
       is_pinned: false,
+      // amount_cents, currency, screenshot_url are optional; omit if you’re not using them
     };
-
-    console.log("Ingest row (sanitized):", {
-      ...row,
-      message_text: `${row.message_text.slice(0, 60)}...`,
-    });
 
     const { data, error } = await sb
       .from("mf_proof_posts")
@@ -65,30 +80,28 @@ export async function handler(event, context) {
       .single();
 
     if (error) {
-      console.error("Supabase error:", error);
-      return json(500, { error: error.message });
+      console.error("supabase error", error);
+      return new Response(
+        JSON.stringify({
+          error: "supabase",
+          code: error.code,
+          details: error.details,
+          message: error.message,
+          hint: error.hint,
+        }),
+        { status: 500, headers: { "content-type": "application/json" } }
+      );
     }
 
-    console.log("Ingest OK id:", data?.id);
-    return json(200, { ok: true, id: data?.id });
+    return new Response(JSON.stringify({ ok: true, id: data?.id }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
   } catch (e) {
-    console.error("Server error:", e);
-    return json(500, { error: "Server error" });
+    console.error(e);
+    return new Response(JSON.stringify({ error: "Server error", message: String(e) }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
   }
-}
-
-// --- helpers ---
-function json(statusCode, obj) {
-  return {
-    statusCode,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(obj),
-  };
-}
-function safeJson(s) {
-  try {
-    return JSON.parse(s || "{}");
-  } catch {
-    return {};
-  }
-}
+};
