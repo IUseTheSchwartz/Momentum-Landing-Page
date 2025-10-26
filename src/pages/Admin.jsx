@@ -369,10 +369,7 @@ function AdminProof() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("mf_proof_posts")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const { data } = await supabase.from("mf_proof_posts").select("*").order("created_at", { ascending: false });
       setItems(data || []);
     })();
   }, []);
@@ -522,11 +519,7 @@ function AdminLeads() {
   const [rows, setRows] = useState([]);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("mf_leads")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
+      const { data } = await supabase.from("mf_leads").select("*").order("created_at", { ascending: false }).limit(500);
       setRows(data || []);
     })();
   }, []);
@@ -622,11 +615,7 @@ function AdminAvailability() {
           .eq("id", row.id);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase
-          .from("mf_availability")
-          .insert([{ ...row }])
-          .select()
-          .single();
+        const { data, error } = await supabase.from("mf_availability").insert([{ ...row }]).select().single();
         if (error) throw error;
         setRow(data);
       }
@@ -856,8 +845,7 @@ function AdminAppointments() {
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-white/10">
                 <td className="p-2">
-                  {new Date(r.start_utc).toLocaleString()} →{" "}
-                  {new Date(r.end_utc).toLocaleTimeString()}
+                  {new Date(r.start_utc).toLocaleString()} → {new Date(r.end_utc).toLocaleTimeString()}
                 </td>
                 <td className="p-2">{r.full_name || "-"}</td>
                 <td className="p-2">{r.email || "-"}</td>
