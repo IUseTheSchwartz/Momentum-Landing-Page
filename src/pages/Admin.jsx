@@ -374,7 +374,7 @@ function AdminQuestions() {
   );
 }
 
-/* ---------------- PROOF (NO AMOUNT) ---------------- */
+/* ---------------- PROOF (NO AMOUNT • NO SCREENSHOTS) ---------------- */
 function AdminProof() {
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -413,11 +413,6 @@ function AdminProof() {
     if (!file) return;
     const url = await uploadPublic(file, "avatars");
     update(i, { avatar_url: url });
-  }
-  async function uploadScreenshot(i, file) {
-    if (!file) return;
-    const url = await uploadPublic(file, "screenshots");
-    update(i, { screenshot_url: url });
   }
 
   function toLocalDtValue(iso) {
@@ -485,7 +480,6 @@ function AdminProof() {
 
       {items.map((it, i) => {
         const avatarId = `avatar_${it.id}`;
-        const ssId = `screenshot_${it.id}`;
         const nameId = `name_${it.id}`;
         const whenId = `when_${it.id}`;
         const msgId = `msg_${it.id}`;
@@ -494,48 +488,26 @@ function AdminProof() {
 
         return (
           <div key={it.id} className="rounded-xl bg-black/20 p-3 border border-white/10 space-y-3">
-            {/* Uploads Row */}
-            <div className="grid sm:grid-cols-2 gap-3">
-              <label htmlFor={avatarId} className="text-xs text-white/60">
-                Avatar (upload)
-                <input
-                  id={avatarId}
-                  type="file"
-                  accept="image/*"
-                  className="mt-1 block w-full text-sm"
-                  onChange={(e) => uploadAvatar(i, e.target.files?.[0])}
+            {/* Avatar */}
+            <label htmlFor={avatarId} className="text-xs text-white/60 inline-block">
+              Avatar (upload)
+              <input
+                id={avatarId}
+                type="file"
+                accept="image/*"
+                className="mt-1 block w-full text-sm"
+                onChange={(e) => uploadAvatar(i, e.target.files?.[0])}
+              />
+              <div className="mt-2">
+                <img
+                  src={it.avatar_url || DEFAULT_AVATAR}
+                  className="h-16 w-16 rounded-full object-cover border border-white/10"
+                  alt="avatar preview"
                 />
-                <div className="mt-2">
-                  <img
-                    src={it.avatar_url || DEFAULT_AVATAR}
-                    className="h-16 w-16 rounded-full object-cover border border-white/10"
-                    alt="avatar preview"
-                  />
-                </div>
-              </label>
+              </div>
+            </label>
 
-              <label htmlFor={ssId} className="text-xs text-white/60">
-                Screenshot (upload)
-                <input
-                  id={ssId}
-                  type="file"
-                  accept="image/*"
-                  className="mt-1 block w-full text-sm"
-                  onChange={(e) => uploadScreenshot(i, e.target.files?.[0])}
-                />
-                {it.screenshot_url && (
-                  <div className="mt-2">
-                    <img
-                      src={it.screenshot_url}
-                      alt="screenshot preview"
-                      className="rounded-lg border border-white/10 max-h-40"
-                    />
-                  </div>
-                )}
-              </label>
-            </div>
-
-            {/* Labeled Inputs Row (no amount) */}
+            {/* Fields */}
             <div className="grid sm:grid-cols-2 gap-3">
               <label htmlFor={nameId} className="text-xs text-white/60">
                 Display name
