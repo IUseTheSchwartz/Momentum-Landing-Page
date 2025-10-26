@@ -1,5 +1,5 @@
 [build]
-  command = "bash -lc 'pwd && ls -la && node -v && npm -v && echo --- && cat package.json && echo --- && npm ci && npm run build'"
+  command = "npm run build"
   publish = "dist"
 
 [[redirects]]
