@@ -34,37 +34,41 @@ function AdminSettings() {
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  // Load the newest site settings row (in case multiple exist)
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("mf_site_settings").select("*").limit(1).maybeSingle();
+      const { data, error } = await supabase
+        .from("mf_site_settings")
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) console.error(error);
       setS(data || {});
     })();
   }, []);
 
-  async function uploadLogo(e) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const url = await uploadPublic(f, "logos");
-    setS((x) => ({ ...x, logo_url: url }));
-  }
-  async function uploadHeadshot(e) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const url = await uploadPublic(f, "headshots");
-    setS((x) => ({ ...x, headshot_url: url }));
+  // Create or update in DB
+  async function savePartial(patch) {
+    const payload = { ...(s || {}), ...patch, updated_at: new Date().toISOString() };
+
+    // if no row exists yet, insert one; otherwise update
+    if (payload.id) {
+      const { error } = await supabase.from("mf_site_settings").update(payload).eq("id", payload.id);
+      if (error) throw error;
+      setS(payload);
+    } else {
+      const { data, error } = await supabase.from("mf_site_settings").insert([payload]).select().single();
+      if (error) throw error;
+      setS(data);
+    }
   }
 
-  async function save() {
+  async function saveAll() {
+    if (!s) return;
     setSaving(true);
     try {
-      if (s?.id) {
-        const { error } = await supabase.from("mf_site_settings").update({ ...s, updated_at: new Date().toISOString() }).eq("id", s.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.from("mf_site_settings").insert([{ ...s }]).select().single();
-        if (error) throw error;
-        setS(data);
-      }
+      await savePartial({});
       alert("Saved");
     } catch (e) {
       console.error(e);
@@ -80,64 +84,126 @@ function AdminSettings() {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <h3 className="text-lg font-semibold mb-3">Site Settings</h3>
 
-      <Row label="Logo">
-        <div className="flex items-center gap-3">
-          <input type="file" onChange={uploadLogo} />
-          {s.logo_url && <img src={s.logo_url} className="h-8" />}
-        </div>
+      {/* LOGO URL ONLY (no uploads) */}
+      <Row label="Logo URL">
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.logo_url || ""}
+          onChange={(e) => setS({ ...s, logo_url: e.target.value })}
+          onBlur={() => savePartial({ logo_url: s.logo_url || null })}
+          placeholder="https://your-host/path/logo.png"
+        />
       </Row>
+      {s.logo_url ? (
+        <div className="mb-4">
+          <img src={s.logo_url} alt="logo preview" className="h-10" />
+        </div>
+      ) : null}
 
-      <Row label="Headshot">
-        <div className="flex items-center gap-3">
-          <input type="file" onChange={uploadHeadshot} />
-          {s.headshot_url && <img src={s.headshot_url} className="h-12 w-12 rounded-xl object-cover" />}
-        </div>
+      {/* HEADSHOT URL ONLY (no uploads) */}
+      <Row label="Headshot URL">
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.headshot_url || ""}
+          onChange={(e) => setS({ ...s, headshot_url: e.target.value })}
+          onBlur={() => savePartial({ headshot_url: s.headshot_url || null })}
+          placeholder="https://your-host/path/headshot.jpg"
+        />
       </Row>
+      {s.headshot_url ? (
+        <div className="mb-4">
+          <img src={s.headshot_url} alt="headshot preview" className="h-20 w-20 rounded-xl object-cover" />
+        </div>
+      ) : null}
 
       <Row label="Site Name">
-        <input className="w-full bg-white/5 border border-white/15 p-2 rounded"
-          value={s.site_name || ""} onChange={(e) => setS({ ...s, site_name: e.target.value })} />
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.site_name || ""}
+          onChange={(e) => setS({ ...s, site_name: e.target.value })}
+          onBlur={() => savePartial({ site_name: s.site_name || null })}
+        />
       </Row>
 
       <Row label="Hero Title">
-        <input className="w-full bg-white/5 border border-white/15 p-2 rounded"
-          value={s.hero_title || ""} onChange={(e) => setS({ ...s, hero_title: e.target.value })} />
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.hero_title || ""}
+          onChange={(e) => setS({ ...s, hero_title: e.target.value })}
+          onBlur={() => savePartial({ hero_title: s.hero_title || null })}
+        />
       </Row>
 
       <Row label="Hero Sub">
-        <input className="w-full bg-white/5 border border-white/15 p-2 rounded"
-          value={s.hero_sub || ""} onChange={(e) => setS({ ...s, hero_sub: e.target.value })} />
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.hero_sub || ""}
+          onChange={(e) => setS({ ...s, hero_sub: e.target.value })}
+          onBlur={() => savePartial({ hero_sub: s.hero_sub || null })}
+        />
       </Row>
 
       <Row label="About Name">
-        <input className="w-full bg:white bg-white/5 border border-white/15 p-2 rounded"
-          value={s.about_name || ""} onChange={(e) => setS({ ...s, about_name: e.target.value })} />
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.about_name || ""}
+          onChange={(e) => setS({ ...s, about_name: e.target.value })}
+          onBlur={() => savePartial({ about_name: s.about_name || null })}
+        />
       </Row>
 
       <Row label="About Bio">
-        <textarea className="w-full bg-white/5 border border-white/15 p-2 rounded"
-          value={s.about_bio || ""} onChange={(e) => setS({ ...s, about_bio: e.target.value })} />
+        <textarea
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.about_bio || ""}
+          onChange={(e) => setS({ ...s, about_bio: e.target.value })}
+          onBlur={() => savePartial({ about_bio: s.about_bio || null })}
+        />
       </Row>
 
       <Row label="Primary Color">
-        <input type="color" value={s.brand_primary || "#6b8cff"} onChange={(e) => setS({ ...s, brand_primary: e.target.value })} />
+        <input
+          type="color"
+          value={s.brand_primary || "#6b8cff"}
+          onChange={(e) => {
+            const v = e.target.value;
+            setS({ ...s, brand_primary: v });
+            // save on change for instant theming
+            savePartial({ brand_primary: v }).catch(console.error);
+          }}
+        />
       </Row>
 
       <Row label="Accent Color">
-        <input type="color" value={s.brand_accent || "#9b5cff"} onChange={(e) => setS({ ...s, brand_accent: e.target.value })} />
+        <input
+          type="color"
+          value={s.brand_accent || "#9b5cff"}
+          onChange={(e) => {
+            const v = e.target.value;
+            setS({ ...s, brand_accent: v });
+            savePartial({ brand_accent: v }).catch(console.error);
+          }}
+        />
       </Row>
 
       <Row label="Calendly (optional)">
-        <input className="w-full bg-white/5 border border-white/15 p-2 rounded"
-          value={s.calendly_url || ""} onChange={(e) => setS({ ...s, calendly_url: e.target.value })} />
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.calendly_url || ""}
+          onChange={(e) => setS({ ...s, calendly_url: e.target.value })}
+          onBlur={() => savePartial({ calendly_url: s.calendly_url || null })}
+          placeholder="https://calendly.com/..."
+        />
       </Row>
 
-      <button onClick={save} disabled={saving} className="mt-4 px-4 py-2 rounded-lg bg-white text-black">
+      {/* Keep a manual Save in case you type and click away fast */}
+      <button onClick={saveAll} disabled={saving} className="mt-4 px-4 py-2 rounded-lg bg-white text-black">
         {saving ? "Saving…" : "Save"}
       </button>
     </div>
   );
 }
+
 
 function AdminQuestions() {
   const [list, setList] = useState([]);
