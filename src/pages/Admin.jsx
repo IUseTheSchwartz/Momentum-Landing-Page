@@ -34,7 +34,7 @@ function AdminSettings() {
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Load the newest site settings row (in case multiple exist)
+  // Load the newest settings row so we always have something to update
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
@@ -48,19 +48,38 @@ function AdminSettings() {
     })();
   }, []);
 
-  // Create or update in DB
-  async function savePartial(patch) {
-    const payload = { ...(s || {}), ...patch, updated_at: new Date().toISOString() };
+  async function ensureRow() {
+    // Make sure a row exists before saving fields
+    if (s?.id) return s;
+    const base = { ...(s || {}), updated_at: new Date().toISOString() };
+    const { data, error } = await supabase.from("mf_site_settings").insert([base]).select().single();
+    if (error) throw error;
+    setS(data);
+    return data;
+  }
 
-    // if no row exists yet, insert one; otherwise update
-    if (payload.id) {
-      const { error } = await supabase.from("mf_site_settings").update(payload).eq("id", payload.id);
-      if (error) throw error;
-      setS(payload);
-    } else {
-      const { data, error } = await supabase.from("mf_site_settings").insert([payload]).select().single();
-      if (error) throw error;
-      setS(data);
+  // Create or update in DB, merging a patch
+  async function savePartial(patch) {
+    const current = await ensureRow();
+    const payload = { ...current, ...patch, updated_at: new Date().toISOString() };
+    const { error } = await supabase.from("mf_site_settings").update(payload).eq("id", current.id);
+    if (error) throw error;
+    setS(payload);
+  }
+
+  // Upload to Supabase Storage, then persist URL into the table
+  async function uploadAndSave(e, field, folder) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const url = await uploadPublic(file, folder); // uses momentum-public bucket
+      await savePartial({ [field]: url });          // immediately writes URL to table
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed. Check bucket name/policies and that you are logged in.");
+    } finally {
+      // clear the file input so the same file can be reselected if needed
+      e.target.value = "";
     }
   }
 
@@ -84,37 +103,43 @@ function AdminSettings() {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <h3 className="text-lg font-semibold mb-3">Site Settings</h3>
 
-      {/* LOGO URL ONLY (no uploads) */}
-      <Row label="Logo URL">
+      {/* LOGO: file upload -> saves URL into mf_site_settings.logo_url */}
+      <Row label="Logo (upload)">
+        <div className="flex items-center gap-3">
+          <input type="file" accept="image/*" onChange={(e) => uploadAndSave(e, "logo_url", "logos")} />
+          {s.logo_url && <img src={s.logo_url} className="h-8" alt="logo preview" />}
+        </div>
+      </Row>
+
+      {/* HEADSHOT: file upload -> saves URL into mf_site_settings.headshot_url */}
+      <Row label="Headshot (upload)">
+        <div className="flex items-center gap-3">
+          <input type="file" accept="image/*" onChange={(e) => uploadAndSave(e, "headshot_url", "headshots")} />
+          {s.headshot_url && (
+            <img src={s.headshot_url} className="h-12 w-12 rounded-xl object-cover" alt="headshot preview" />
+          )}
+        </div>
+      </Row>
+
+      {/* Optional manual URL override (paste any URL, auto-saves on blur) */}
+      <Row label="Logo URL (manual paste)">
         <input
           className="w-full bg-white/5 border border-white/15 p-2 rounded"
           value={s.logo_url || ""}
           onChange={(e) => setS({ ...s, logo_url: e.target.value })}
           onBlur={() => savePartial({ logo_url: s.logo_url || null })}
-          placeholder="https://your-host/path/logo.png"
+          placeholder="https://cdn.example.com/logo.png"
         />
       </Row>
-      {s.logo_url ? (
-        <div className="mb-4">
-          <img src={s.logo_url} alt="logo preview" className="h-10" />
-        </div>
-      ) : null}
-
-      {/* HEADSHOT URL ONLY (no uploads) */}
-      <Row label="Headshot URL">
+      <Row label="Headshot URL (manual paste)">
         <input
           className="w-full bg-white/5 border border-white/15 p-2 rounded"
           value={s.headshot_url || ""}
           onChange={(e) => setS({ ...s, headshot_url: e.target.value })}
           onBlur={() => savePartial({ headshot_url: s.headshot_url || null })}
-          placeholder="https://your-host/path/headshot.jpg"
+          placeholder="https://cdn.example.com/headshot.jpg"
         />
       </Row>
-      {s.headshot_url ? (
-        <div className="mb-4">
-          <img src={s.headshot_url} alt="headshot preview" className="h-20 w-20 rounded-xl object-cover" />
-        </div>
-      ) : null}
 
       <Row label="Site Name">
         <input
@@ -168,7 +193,6 @@ function AdminSettings() {
           onChange={(e) => {
             const v = e.target.value;
             setS({ ...s, brand_primary: v });
-            // save on change for instant theming
             savePartial({ brand_primary: v }).catch(console.error);
           }}
         />
@@ -196,14 +220,12 @@ function AdminSettings() {
         />
       </Row>
 
-      {/* Keep a manual Save in case you type and click away fast */}
       <button onClick={saveAll} disabled={saving} className="mt-4 px-4 py-2 rounded-lg bg-white text-black">
         {saving ? "Saving…" : "Save"}
       </button>
     </div>
   );
 }
-
 
 function AdminQuestions() {
   const [list, setList] = useState([]);
