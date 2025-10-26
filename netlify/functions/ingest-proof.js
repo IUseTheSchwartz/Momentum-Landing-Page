@@ -1,22 +1,28 @@
+// netlify/functions/ingest-proof.js
 import { createClient } from "@supabase/supabase-js";
 
-export default async (req) => {
+/**
+ * Netlify Functions v2 handler
+ * - Use `new Response(...)` instead of res.status(...)
+ * - Reads JSON body with `await request.json()`
+ */
+export default async (request, context) => {
+  const json = (obj, status = 200) =>
+    new Response(JSON.stringify(obj), {
+      status,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+
   try {
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
-        headers: { "content-type": "application/json" },
-      });
+    if (request.method !== "POST") {
+      return json({ error: "Method not allowed" }, 405);
     }
 
     let body;
     try {
-      body = await req.json();
+      body = await request.json();
     } catch {
-      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-        status: 400,
-        headers: { "content-type": "application/json" },
-      });
+      return json({ error: "Invalid JSON body" }, 400);
     }
 
     const {
@@ -31,36 +37,48 @@ export default async (req) => {
       shared_secret,
     } = body || {};
 
+    // Auth
     if (!shared_secret || shared_secret !== process.env.PROOF_INGEST_SECRET) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "content-type": "application/json" },
-      });
+      return json({ error: "Unauthorized" }, 401);
     }
-
     if (!discord_message_id || !discord_user_id || !message_text) {
-      return new Response(
-        JSON.stringify({ error: "Missing fields: discord_message_id, discord_user_id, message_text" }),
-        { status: 400, headers: { "content-type": "application/json" } }
-      );
+      return json({ error: "Missing fields" }, 400);
     }
 
+    // Publish policy
     const roleNames = (roles || []).map((r) => (r || "").toString());
-    const allowAuto = ["Manager", "Closer"];
-    const is_published = client_auto_publish || roleNames.some((r) => allowAuto.includes(r));
 
+    // 👇 NEW: env switch to publish by default
+    const DEFAULT_PUBLISH =
+      (process.env.PROOF_DEFAULT_PUBLISH || "").toLowerCase() === "true";
+
+    // Optional role-based allowlist (keep/edit as you like)
+    const allowAuto = ["Manager", "Closer"];
+
+    const is_published =
+      DEFAULT_PUBLISH ||
+      client_auto_publish ||
+      roleNames.some((r) => allowAuto.includes(r));
+
+    // Supabase (service role)
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE;
+
     if (!url || !key) {
-      return new Response(
-        JSON.stringify({ error: "Supabase env missing", haveUrl: !!url, haveServiceRole: !!key }),
-        { status: 500, headers: { "content-type": "application/json" } }
+      return json(
+        {
+          error: "Supabase env missing",
+          haveUrl: !!url,
+          haveServiceRole: !!key,
+        },
+        500
       );
     }
-    const sb = createClient(url, key);
 
+    const sb = createClient(url, key);
     const happened_at = timestamp || new Date().toISOString();
 
+    // Upsert by discord_message_id (requires a unique index on that column)
     const row = {
       discord_message_id: String(discord_message_id),
       discord_user_id: String(discord_user_id),
@@ -70,7 +88,6 @@ export default async (req) => {
       happened_at,
       is_published,
       is_pinned: false,
-      // amount_cents, currency, screenshot_url are optional; omit if you’re not using them
     };
 
     const { data, error } = await sb
@@ -81,27 +98,12 @@ export default async (req) => {
 
     if (error) {
       console.error("supabase error", error);
-      return new Response(
-        JSON.stringify({
-          error: "supabase",
-          code: error.code,
-          details: error.details,
-          message: error.message,
-          hint: error.hint,
-        }),
-        { status: 500, headers: { "content-type": "application/json" } }
-      );
+      return json({ error: error.message }, 500);
     }
 
-    return new Response(JSON.stringify({ ok: true, id: data?.id }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
+    return json({ ok: true, id: data?.id, is_published: data?.is_published }, 200);
   } catch (e) {
     console.error(e);
-    return new Response(JSON.stringify({ error: "Server error", message: String(e) }), {
-      status: 500,
-      headers: { "content-type": "application/json" },
-    });
+    return json({ error: "Server error" }, 500);
   }
 };
