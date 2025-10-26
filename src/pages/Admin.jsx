@@ -374,7 +374,7 @@ function AdminQuestions() {
   );
 }
 
-/* ---------------- PROOF (CLEAN & LABELED) ---------------- */
+/* ---------------- PROOF (CLEAN & LABELED, WITH DEFAULT AVATAR) ---------------- */
 function AdminProof() {
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -422,7 +422,6 @@ function AdminProof() {
   }
 
   function toLocalDtValue(iso) {
-    // Convert ISO -> "YYYY-MM-DDTHH:mm" (no seconds, no Z) for <input type="datetime-local">
     try {
       const d = iso ? new Date(iso) : new Date();
       const pad = (n) => String(n).padStart(2, "0");
@@ -437,12 +436,21 @@ function AdminProof() {
     }
   }
   function fromLocalDtValue(local) {
-    // Interpret local datetime as local time and convert to ISO
     if (!local) return new Date().toISOString();
     const d = new Date(local);
-    // Adjust to ISO with local offset applied
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
   }
+
+  // Discord-style default avatar (embedded SVG)
+  const DEFAULT_AVATAR =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">
+        <rect width="100%" height="100%" fill="#2f3136"/>
+        <circle cx="32" cy="24" r="12" fill="#b9bbbe"/>
+        <rect x="14" y="38" width="36" height="12" rx="6" fill="#b9bbbe"/>
+      </svg>
+    `);
 
   async function save() {
     setSaving(true);
@@ -502,15 +510,13 @@ function AdminProof() {
                   className="mt-1 block w-full text-sm"
                   onChange={(e) => uploadAvatar(i, e.target.files?.[0])}
                 />
-                {it.avatar_url && (
-                  <div className="mt-2">
-                    <img
-                      src={it.avatar_url}
-                      className="h-16 w-16 rounded-full object-cover border border-white/10"
-                      alt="avatar preview"
-                    />
-                  </div>
-                )}
+                <div className="mt-2">
+                  <img
+                    src={it.avatar_url || DEFAULT_AVATAR}
+                    className="h-16 w-16 rounded-full object-cover border border-white/10"
+                    alt="avatar preview"
+                  />
+                </div>
               </label>
 
               <label htmlFor={ssId} className="text-xs text-white/60">
@@ -705,7 +711,8 @@ function AdminAvailability() {
           booking_window_days: 14,
           weekly: {
             mon: [["09:00", "18:00"]],
-            tue: [["09:00", "18:00"]],            wed: [["09:00", "18:00"]],
+            tue: [["09:00", "18:00"]],
+            wed: [["09:00", "18:00"]],
             thu: [["09:00", "18:00"]],
             fri: [["09:00", "18:00"]],
             sat: [],
