@@ -7,7 +7,8 @@ exports.handler = async (event) => {
       return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    const payload = JSON.parse(event.body || "{}"); // { subject, text, html?, to? }
+    const payload = JSON.parse(event.body || "{}"); // { subject, text, html?, to?, replyTo? }
+
     const toList = (payload.to || process.env.SMTP_TO || "")
       .split(",")
       .map((s) => s.trim())
@@ -16,7 +17,8 @@ exports.handler = async (event) => {
     const host = process.env.SMTP_HOST;
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
-    const from = process.env.SMTP_FROM || user;
+    const fromEmail = process.env.SMTP_FROM || user;
+    const fromName = process.env.SMTP_FROM_NAME || "Momentum Financial";
     const port = Number(process.env.SMTP_PORT || 587);
     const secure = port === 465; // true for 465, false for 587/25
 
@@ -38,18 +40,21 @@ exports.handler = async (event) => {
       auth: { user, pass },
     });
 
+    // Compose "From" with a friendly name
+    const fromHeader = `"${fromName.replace(/"/g, "'")}" <${fromEmail}>`;
+
     await transporter.sendMail({
-      from,
+      from: fromHeader,
       to: toList,
       subject: payload.subject || "Notification",
       text: payload.text || "",
-      html: payload.html || undefined,
+      html: payload.html || undefined, // keep optional; text-only is fine
+      replyTo: payload.replyTo || fromEmail, // so replies go somewhere useful
     });
 
     return { statusCode: 200, body: "ok" };
   } catch (e) {
     console.error(e);
-    // Don’t break UX if email fails
     return { statusCode: 200, body: "ok (email skipped due to error)" };
   }
 };
