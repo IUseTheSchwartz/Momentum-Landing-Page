@@ -7,7 +7,7 @@ exports.handler = async (event) => {
       return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    const payload = JSON.parse(event.body || "{}"); // { subject, text, html?, to?, replyTo? }
+    const payload = JSON.parse(event.body || "{}"); // { subject, text, html?, to?, replyTo?, to? }
 
     const toList = (payload.to || process.env.SMTP_TO || "")
       .split(",")
@@ -47,14 +47,40 @@ exports.handler = async (event) => {
       from: fromHeader,
       to: toList,
       subject: payload.subject || "Notification",
-      text: payload.text || "",
+      // If caller didn't provide text, derive it from HTML (better for deliverability)
+      text: payload.text || (payload.html ? stripHtml(payload.html) : ""),
       html: payload.html || undefined, // keep optional; text-only is fine
       replyTo: payload.replyTo || fromEmail, // so replies go somewhere useful
+
+      // 🔽 Deliverability helpers (good for warmup on a new domain)
+      headers: {
+        // Disable tracking for warmup so links aren't rewritten
+        "X-MJ-TrackOpen": "0",
+        "X-MJ-TrackClick": "0",
+
+        // Gmail-friendly unsubscribe (replace with your real mailbox/URL)
+        "List-Unsubscribe":
+          `<mailto:support@logantharris.com>, <https://logantharris.com/unsubscribe>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
     });
 
     return { statusCode: 200, body: "ok" };
   } catch (e) {
     console.error(e);
+    // Keep non-fatal to avoid breaking UX; logs will show the error
     return { statusCode: 200, body: "ok (email skipped due to error)" };
   }
 };
+
+// Minimal HTML→text fallback for inboxing
+function stripHtml(html = "") {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<\/(p|div|br|h\d)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
