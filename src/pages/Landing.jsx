@@ -13,9 +13,21 @@ export default function Landing() {
 
   // modal/booking state
   const [open, setOpen] = useState(false);
-  const [leadDraft, setLeadDraft] = useState(null); // {full_name,email,phone,answers}
+
+  // NEW: step state: "contact" -> "qualify" -> "slots"
+  const [step, setStep] = useState("contact");
+
+  // lead state
+  const [leadId, setLeadId] = useState(null);
+  const [leadDraft, setLeadDraft] = useState(null); // {full_name,email,phone,answers?}
+
   const [slots, setSlots] = useState([]);
   const [booking, setBooking] = useState(false);
+
+  // NEW: local contact form fields
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -118,6 +130,82 @@ export default function Landing() {
     return out.slice(0, 120);
   }
 
+  // NEW: create incomplete lead as soon as contact info is submitted
+  async function handleContactNext() {
+    // Basic sanity check (keep it light)
+    const name = (fullName || "").trim();
+    const em = (email || "").trim();
+    const ph = (phone || "").trim();
+
+    if (!name && !em && !ph) {
+      alert("Please provide at least a name, email, or phone.");
+      return;
+    }
+
+    const utm = readUTM();
+    // Insert incomplete lead
+    const { data, error } = await supabase
+      .from("mf_leads")
+      .insert([
+        {
+          full_name: name || null,
+          email: em || null,
+          phone: ph || null,
+          utm,
+          is_complete: false,   // ⬅️ NEW flag
+          stage: "new",         // optional, for pipeline
+        },
+      ])
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error(error);
+      alert("Could not start your application. Please try again.");
+      return;
+    }
+
+    const newId = data?.id;
+    setLeadId(newId);
+    setLeadDraft({ full_name: name || null, email: em || null, phone: ph || null });
+    setStep("qualify");
+
+    // Internal notification: incomplete lead created
+    if (settings?.notify_emails) {
+      try {
+        await fetch("/.netlify/functions/send-email", {
+          method: "POST",
+          body: JSON.stringify({
+            to: settings.notify_emails,
+            subject: `New lead (incomplete) — ${name || em || ph || "Unknown"}`,
+            text: [
+              `A new lead started the application but hasn't finished yet.`,
+              `Name: ${name || "-"}`,
+              `Email: ${em || "-"}`,
+              `Phone: ${ph || "-"}`,
+              ``,
+              `UTM: ${JSON.stringify(utm || {})}`,
+              `Lead ID: ${newId || "-"}`,
+            ].join("\n"),
+          }),
+        });
+      } catch {}
+    }
+  }
+
+  // When modal opens, reset to first step
+  function openModal() {
+    setOpen(true);
+    setStep("contact");
+    setLeadId(null);
+    setLeadDraft(null);
+    setFullName("");
+    setEmail("");
+    setPhone("");
+    setSlots([]);
+    setBooking(false);
+  }
+
   return (
     <div
       className="min-h-screen bg-[#1e1f22] text-white"
@@ -141,7 +229,7 @@ export default function Landing() {
           href="#apply"
           onClick={(e) => {
             e.preventDefault();
-            setOpen(true);
+            openModal();
           }}
           className="rounded-lg bg-white text-black px-4 py-2 font-semibold"
         >
@@ -159,7 +247,7 @@ export default function Landing() {
             {settings?.hero_sub || "High standards. High pay. No excuses."}
           </p>
 
-        {/* PROOF + CTA (no sidebar form) */}
+          {/* PROOF + CTA (no sidebar form) */}
           <div className="mt-6 grid gap-6">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
               <ProofFeed items={proof} visibleCount={10} cycleMs={2500} />
@@ -174,7 +262,7 @@ export default function Landing() {
                 </p>
               </div>
               <button
-                onClick={() => setOpen(true)}
+                onClick={() => openModal()}
                 className="rounded-lg bg-white text-black px-4 py-2 font-semibold w-full sm:w-auto"
               >
                 Book Now
@@ -219,93 +307,159 @@ export default function Landing() {
       {open && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-[#2b2d31] border border-white/10 p-4">
-            {!leadDraft ? (
-              // STEP 1: Form
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold">Apply to Book a Call</h3>
+            {/* HEADER */}
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">
+                {step === "contact"
+                  ? "Start your application"
+                  : step === "qualify"
+                  ? "Answer a few questions"
+                  : "Pick a time"}
+              </h3>
+              <button onClick={() => setOpen(false)} className="text-white/60 hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            {/* STEP: CONTACT INFO (FIRST) */}
+            {step === "contact" && (
+              <div className="grid gap-3">
+                <div className="grid gap-2">
+                  <label className="text-sm text-white/70">Full Name</label>
+                  <input
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="John Carter"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm text-white/70">Phone</label>
+                  <input
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="(555) 555-5555"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm text-white/70">Email</label>
+                  <input
+                    type="email"
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 mt-2">
                   <button
                     onClick={() => setOpen(false)}
-                    className="text-white/60 hover:text-white"
+                    className="px-3 py-2 rounded-lg border border-white/15 text-white/80 hover:bg-white/5"
                   >
-                    ✕
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleContactNext}
+                    className="px-4 py-2 rounded-lg bg-white text-black font-semibold"
+                  >
+                    Next
                   </button>
                 </div>
+                <p className="text-xs text-white/50">
+                  You can finish later; we’ll save your info as an incomplete application.
+                </p>
+              </div>
+            )}
+
+            {/* STEP: QUALIFY (SAME QUALIFYFORM AS BEFORE) */}
+            {step === "qualify" && (
+              <div>
+                <button
+                  onClick={() => setStep("contact")}
+                  className="text-white/60 hover:text-white mb-3"
+                >
+                  ← Back
+                </button>
                 <QualifyForm
                   questions={questions}
                   onSubmit={async (values) => {
+                    // Build answers payload from QualifyForm
                     const answers = questions.map((q) => ({
                       question_id: q.id,
                       question: q.question_text,
                       value: values[q.id] || "",
                     }));
-                    const utm = readUTM();
-                    const full_name =
-                      answers.find((a) => /full name/i.test(a.question))?.value ||
-                      null;
-                    const email =
-                      answers.find((a) => /^email$/i.test(a.question))?.value ||
-                      null;
-                    const phone =
-                      answers.find((a) => /^phone$/i.test(a.question))?.value ||
-                      null;
 
-                    // Insert lead
-                    const { error } = await supabase
+                    // Update lead as complete, attach answers and (re)save contact
+                    const { error: upErr } = await supabase
                       .from("mf_leads")
-                      .insert([{ full_name, email, phone, answers, utm }]);
-                    if (error) {
+                      .update({
+                        full_name: leadDraft?.full_name || fullName || null,
+                        email: leadDraft?.email || email || null,
+                        phone: leadDraft?.phone || phone || null,
+                        answers,
+                        is_complete: true, // ⬅️ mark complete now
+                        stage: "qualified",
+                      })
+                      .eq("id", leadId);
+
+                    if (upErr) {
+                      console.error(upErr);
                       alert("Submission failed.");
                       return;
                     }
 
-                    // Email "new lead" via SMTP (Mailjet) - safe no-op if env not set
+                    // Notify internal: lead completed
                     await fetch("/.netlify/functions/send-email", {
                       method: "POST",
                       body: JSON.stringify({
                         to: settings?.notify_emails || "",
-                        subject: `New lead — ${full_name || "Unknown"}`,
+                        subject: `Lead completed — ${leadDraft?.full_name || fullName || "Unknown"}`,
                         text: [
-                          `New Lead from Momentum Financial`,
-                          `Name: ${full_name || "-"}`,
-                          `Email: ${email || "-"}`,
-                          `Phone: ${phone || "-"}`,
+                          `Lead completed the questionnaire.`,
+                          `Name: ${leadDraft?.full_name || fullName || "-"}`,
+                          `Email: ${leadDraft?.email || email || "-"}`,
+                          `Phone: ${leadDraft?.phone || phone || "-"}`,
                           "",
                           "Answers:",
                           ...answers.map(
                             (a) => `- ${a.question || a.question_id}: ${a.value}`
                           ),
                           "",
-                          `UTM: ${JSON.stringify(utm || {})}`,
+                          `Lead ID: ${leadId || "-"}`,
                         ].join("\n"),
                       }),
                     });
 
-                    // Move to slot step
-                    setLeadDraft({ full_name, email, phone, answers });
+                    // Move to slots
+                    setLeadDraft((prev) => ({
+                      ...(prev || {}),
+                      full_name: prev?.full_name || fullName || null,
+                      email: prev?.email || email || null,
+                      phone: prev?.phone || phone || null,
+                      answers,
+                    }));
                     const slotsComputed = await computeSlots();
                     setSlots(slotsComputed);
+                    setStep("slots");
                   }}
                 />
               </div>
-            ) : (
-              // STEP 2: Slots
+            )}
+
+            {/* STEP: SLOTS (UNCHANGED, but now ties to leadId) */}
+            {step === "slots" && (
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold">Pick a time</h3>
-                  <button
-                    onClick={() => {
-                      setLeadDraft(null);
-                    }}
-                    className="text-white/60 hover:text-white"
-                  >
-                    ← Back
-                  </button>
-                </div>
+                <button
+                  onClick={() => setStep("qualify")}
+                  className="text-white/60 hover:text-white mb-3"
+                >
+                  ← Back
+                </button>
                 {!slots.length ? (
-                  <div className="text-white/70">
-                    No slots available. Try different days.
-                  </div>
+                  <div className="text-white/70">No slots available. Try different days.</div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-auto">
                     {slots.map((slt) => (
@@ -315,10 +469,10 @@ export default function Landing() {
                         onClick={async () => {
                           setBooking(true);
                           const appt = {
-                            full_name: leadDraft.full_name,
-                            email: leadDraft.email,
-                            phone: leadDraft.phone,
-                            answers: leadDraft.answers,
+                            full_name: leadDraft?.full_name || fullName || null,
+                            email: leadDraft?.email || email || null,
+                            phone: leadDraft?.phone || phone || null,
+                            answers: leadDraft?.answers || [],
                             start_utc: slt.startUtc,
                             end_utc: slt.endUtc,
                             timezone: settings?.brand_tz || "America/Chicago",
@@ -328,6 +482,7 @@ export default function Landing() {
                             .from("mf_appointments")
                             .insert([
                               {
+                                lead_id: leadId || null, // ⬅️ link to lead
                                 full_name: appt.full_name,
                                 email: appt.email,
                                 phone: appt.phone,
@@ -335,6 +490,7 @@ export default function Landing() {
                                 start_utc: appt.start_utc,
                                 end_utc: appt.end_utc,
                                 timezone: appt.timezone,
+                                status: "scheduled",
                               },
                             ]);
                           if (error) {
@@ -343,29 +499,35 @@ export default function Landing() {
                             return;
                           }
 
+                          // Update lead stage to 'booked'
+                          if (leadId) {
+                            await supabase
+                              .from("mf_leads")
+                              .update({ stage: "booked" })
+                              .eq("id", leadId);
+                          }
+
                           // Email "appointment"
                           await fetch("/.netlify/functions/send-email", {
                             method: "POST",
                             body: JSON.stringify({
                               to: settings?.notify_emails || "",
                               subject: `New appointment — ${
-                                leadDraft?.full_name || "Unknown"
+                                appt.full_name || "Unknown"
                               } — ${slt.startUtc}`,
                               text: [
                                 `New Appointment`,
-                                `Name: ${leadDraft?.full_name || "-"}`,
-                                `Email: ${leadDraft?.email || "-"}`,
-                                `Phone: ${leadDraft?.phone || "-"}`,
+                                `Name: ${appt.full_name || "-"}`,
+                                `Email: ${appt.email || "-"}`,
+                                `Phone: ${appt.phone || "-"}`,
                                 `When (UTC): ${slt.startUtc} → ${slt.endUtc}`,
-                                `Organizer TZ: ${
-                                  settings?.brand_tz || "America/Chicago"
-                                }`,
+                                `Organizer TZ: ${settings?.brand_tz || "America/Chicago"}`,
                                 "",
                                 "Answers:",
-                                ...(leadDraft?.answers || []).map(
-                                  (a) =>
-                                    `- ${a.question || a.question_id}: ${a.value}`
+                                ...(appt.answers || []).map(
+                                  (a) => `- ${a.question || a.question_id}: ${a.value}`
                                 ),
+                                `Lead ID: ${leadId || "-"}`,
                               ].join("\n"),
                             }),
                           });
