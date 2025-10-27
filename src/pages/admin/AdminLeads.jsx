@@ -9,15 +9,17 @@ export default function AdminLeads() {
   const [q, setQ] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function load() {
-    const { data } = await supabase
+    setLoading(true);
+    const { data, error } = await supabase
       .from("mf_leads")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(1000);
-    setRows(data || []);
+    if (!error) setRows(data || []);
+    setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
@@ -27,10 +29,18 @@ export default function AdminLeads() {
     if (!error) setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
+  function clearFilters() {
+    setQ("");
+    setStageFilter("");
+    setOnlyIncomplete(false);
+  }
+
   const filtered = useMemo(() => {
     let arr = [...rows];
-    if (q.trim()) {
-      const needle = q.toLowerCase();
+
+    // Apply text search only if 2+ characters to avoid accidental hiding
+    const needle = q.trim().toLowerCase();
+    if (needle.length >= 2) {
       arr = arr.filter((r) =>
         (r.full_name || "").toLowerCase().includes(needle) ||
         (r.email || "").toLowerCase().includes(needle) ||
@@ -38,8 +48,10 @@ export default function AdminLeads() {
         JSON.stringify(r.answers || []).toLowerCase().includes(needle)
       );
     }
+
     if (stageFilter) arr = arr.filter((r) => (r.stage || "") === stageFilter);
-    if (onlyIncomplete) arr = arr.filter((r) => !r.is_complete);
+    if (onlyIncomplete) arr = arr.filter((r) => r.is_complete === false); // explicit false
+
     return arr;
   }, [rows, q, stageFilter, onlyIncomplete]);
 
@@ -47,27 +59,42 @@ export default function AdminLeads() {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between mb-3">
         <h3 className="text-lg font-semibold">Leads</h3>
-        <div className="flex gap-2">
-          <input
-            className="bg-white/5 border border-white/15 p-2 rounded w-56"
-            placeholder="Search name/email/phone…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <select
-            className="bg-white/5 border border-white/15 p-2 rounded text-sm"
-            value={stageFilter}
-            onChange={(e) => setStageFilter(e.target.value)}
-          >
-            <option value="">All stages</option>
-            {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <label className="text-sm flex items-center gap-2">
-            <input type="checkbox" checked={onlyIncomplete} onChange={(e) => setOnlyIncomplete(e.target.checked)} />
-            Incomplete only
-          </label>
-          <button onClick={load} className="px-3 py-1.5 rounded bg-white/10">Refresh</button>
+        <div className="flex gap-2 items-center">
+          <span className="text-xs text-white/60">
+            Showing <b>{filtered.length}</b> of <b>{rows.length}</b>
+          </span>
+          <button onClick={load} className="px-3 py-1.5 rounded bg-white/10">
+            {loading ? "…" : "Refresh"}
+          </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-3">
+        <input
+          className="bg-white/5 border border-white/15 p-2 rounded w-56"
+          placeholder="Search (min 2 chars)…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <select
+          className="bg-white/5 border border-white/15 p-2 rounded text-sm"
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+        >
+          <option value="">All stages</option>
+          {STAGES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <label className="text-sm flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={onlyIncomplete}
+            onChange={(e) => setOnlyIncomplete(e.target.checked)}
+          />
+          Incomplete only
+        </label>
+        <button onClick={clearFilters} className="px-3 py-1.5 rounded bg-white/10">Clear filters</button>
       </div>
 
       <div className="overflow-auto rounded-xl border border-white/10">
@@ -116,7 +143,9 @@ export default function AdminLeads() {
                     onChange={(e) => patch(r.id, { stage: e.target.value || null })}
                   >
                     <option value="">(none)</option>
-                    {STAGES.map((s) => <option key={s}>{s}</option>)}
+                    {STAGES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
                   </select>
                 </td>
                 <td className="p-2">
@@ -138,7 +167,8 @@ export default function AdminLeads() {
                   <ul className="space-y-1 max-w-[420px]">
                     {(r.answers || []).map((a, i) => (
                       <li key={i} className="text-white/80">
-                        <span className="text-white/50">{a.question || a.question_id}:</span> {a.value}
+                        <span className="text-white/50">{a.question || a.question_id}:</span>{" "}
+                        {a.value}
                       </li>
                     ))}
                   </ul>
@@ -146,7 +176,11 @@ export default function AdminLeads() {
               </tr>
             ))}
             {!filtered.length && (
-              <tr><td className="p-3 text-white/60" colSpan={8}>No leads match.</td></tr>
+              <tr>
+                <td className="p-3 text-white/60" colSpan={8}>
+                  No leads match.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
