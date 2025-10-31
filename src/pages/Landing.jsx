@@ -6,18 +6,16 @@ import ProofFeed from "../components/ProofFeed.jsx";
 import QualifyForm from "../components/QualifyForm.jsx";
 import { buildICS } from "../lib/ics.js";
 
-// --- helper: extract YT ID from many URL formats ---
+// helper: extract YT ID from various URL formats
 function extractYouTubeId(url = "") {
   if (!url) return "";
   try {
     const u = new URL(url);
     if (u.hostname.includes("youtu.be")) return u.pathname.slice(1);
     if (u.searchParams.get("v")) return u.searchParams.get("v");
-    // youtu.be/ID, youtube.com/embed/ID, /shorts/ID
     const parts = u.pathname.split("/").filter(Boolean);
     const idx = parts.findIndex((p) => ["embed", "shorts"].includes(p));
     if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
-    // last-ditch: first segment
     return parts[0] || "";
   } catch {
     return "";
@@ -49,6 +47,7 @@ export default function Landing() {
 
   useEffect(() => {
     (async () => {
+      // site settings
       const { data: s } = await supabase
         .from("mf_site_settings")
         .select("*")
@@ -57,6 +56,7 @@ export default function Landing() {
         .maybeSingle();
       setSettings(s || {});
 
+      // qualify questions
       const { data: q } = await supabase
         .from("mf_questions")
         .select("*")
@@ -64,10 +64,15 @@ export default function Landing() {
         .order("sort_order", { ascending: true });
       setQuestions(q || []);
 
+      // proof posts (STRICT to your schema + proper ordering)
       const { data: p } = await supabase
         .from("mf_proof_posts")
-        .select("*")
+        .select(
+          "id, display_name, avatar_url, message_text, amount_cents, currency, happened_at, screenshot_url, created_at, is_pinned, is_published"
+        )
         .eq("is_published", true)
+        .order("is_pinned", { ascending: false })
+        .order("happened_at", { ascending: false })
         .order("created_at", { ascending: false });
       setProof(p || []);
     })();
@@ -211,6 +216,7 @@ export default function Landing() {
     }
   }
 
+  // open modal fresh
   function openModal() {
     setOpen(true);
     setStep("contact");
@@ -226,7 +232,7 @@ export default function Landing() {
   const ytId =
     extractYouTubeId(settings?.hero_youtube_url) ||
     extractYouTubeId(settings?.youtube_url) ||
-    ""; // leave blank if not set
+    "";
 
   return (
     <div
@@ -299,21 +305,16 @@ export default function Landing() {
           {/* PROOF + CTA */}
           <div className="mt-6 grid gap-6">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-              {/* Show 4 sales with upgraded animation */}
-              <ProofFeed
-                items={proof}
-                visibleCount={4}
-                cycleMs={3000}
-                blurTransition
-                bigSlides
-              />
+              {/* Show 4 with upgraded animation */}
+              <ProofFeed items={proof} visibleCount={4} cycleMs={3000} blurTransition bigSlides />
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <div>
                 <h3 className="text-lg font-semibold">Ready to apply?</h3>
                 <p className="text-sm text-white/70">
-                  Click “Book Now” to answer a few quick questions and pick a time. No side forms — straight to the point.
+                  Click “Book Now” to answer a few quick questions and pick a time. No side
+                  forms — straight to the point.
                 </p>
               </div>
               <button
@@ -351,7 +352,9 @@ export default function Landing() {
         <section className="mt-16">
           <h2 className="text-xl font-bold">Disclaimer</h2>
           <p className="text-sm text-white/60 mt-2">
-            This is an independent contractor opportunity. Earnings are commission-based and vary by individual effort, skill, and market conditions. No guarantees of income. You must be 18+.
+            This is an independent contractor opportunity. Earnings are
+            commission-based and vary by individual effort, skill, and market
+            conditions. No guarantees of income. You must be 18+.
           </p>
         </section>
       </main>
