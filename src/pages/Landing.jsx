@@ -6,6 +6,24 @@ import ProofFeed from "../components/ProofFeed.jsx";
 import QualifyForm from "../components/QualifyForm.jsx";
 import { buildICS } from "../lib/ics.js";
 
+// --- helper: extract YT ID from many URL formats ---
+function extractYouTubeId(url = "") {
+  if (!url) return "";
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtu.be")) return u.pathname.slice(1);
+    if (u.searchParams.get("v")) return u.searchParams.get("v");
+    // youtu.be/ID, youtube.com/embed/ID, /shorts/ID
+    const parts = u.pathname.split("/").filter(Boolean);
+    const idx = parts.findIndex((p) => ["embed", "shorts"].includes(p));
+    if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
+    // last-ditch: first segment
+    return parts[0] || "";
+  } catch {
+    return "";
+  }
+}
+
 export default function Landing() {
   const [settings, setSettings] = useState(null);
   const [proof, setProof] = useState([]);
@@ -14,7 +32,7 @@ export default function Landing() {
   // modal/booking state
   const [open, setOpen] = useState(false);
 
-  // NEW: step state: "contact" -> "qualify" -> "slots"
+  // step state: "contact" -> "qualify" -> "slots"
   const [step, setStep] = useState("contact");
 
   // lead state
@@ -24,7 +42,7 @@ export default function Landing() {
   const [slots, setSlots] = useState([]);
   const [booking, setBooking] = useState(false);
 
-  // NEW: local contact form fields
+  // local contact form fields
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -38,16 +56,19 @@ export default function Landing() {
         .limit(1)
         .maybeSingle();
       setSettings(s || {});
+
       const { data: q } = await supabase
         .from("mf_questions")
         .select("*")
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
       setQuestions(q || []);
+
       const { data: p } = await supabase
         .from("mf_proof_posts")
         .select("*")
-        .eq("is_published", true);
+        .eq("is_published", true)
+        .order("created_at", { ascending: false });
       setProof(p || []);
     })();
   }, []);
@@ -130,9 +151,8 @@ export default function Landing() {
     return out.slice(0, 120);
   }
 
-  // NEW: create incomplete lead as soon as contact info is submitted
+  // create incomplete lead as soon as contact info is submitted
   async function handleContactNext() {
-    // Basic sanity check (keep it light)
     const name = (fullName || "").trim();
     const em = (email || "").trim();
     const ph = (phone || "").trim();
@@ -143,7 +163,6 @@ export default function Landing() {
     }
 
     const utm = readUTM();
-    // Insert incomplete lead
     const { data, error } = await supabase
       .from("mf_leads")
       .insert([
@@ -152,8 +171,8 @@ export default function Landing() {
           email: em || null,
           phone: ph || null,
           utm,
-          is_complete: false,   // ⬅️ NEW flag
-          stage: "new",         // optional, for pipeline
+          is_complete: false,
+          stage: "new",
         },
       ])
       .select("id")
@@ -170,7 +189,6 @@ export default function Landing() {
     setLeadDraft({ full_name: name || null, email: em || null, phone: ph || null });
     setStep("qualify");
 
-    // Internal notification: incomplete lead created
     if (settings?.notify_emails) {
       try {
         await fetch("/.netlify/functions/send-email", {
@@ -193,7 +211,6 @@ export default function Landing() {
     }
   }
 
-  // When modal opens, reset to first step
   function openModal() {
     setOpen(true);
     setStep("contact");
@@ -205,6 +222,11 @@ export default function Landing() {
     setSlots([]);
     setBooking(false);
   }
+
+  const ytId =
+    extractYouTubeId(settings?.hero_youtube_url) ||
+    extractYouTubeId(settings?.youtube_url) ||
+    ""; // leave blank if not set
 
   return (
     <div
@@ -238,27 +260,60 @@ export default function Landing() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-24">
-        {/* HERO */}
-        <section className="py-10">
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
+        {/* HERO — YouTube FIRST */}
+        <section className="pt-4">
+          {ytId ? (
+            <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40">
+              <div className="aspect-video">
+                <iframe
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1`}
+                  title="Intro"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+              <div className="aspect-video w-full rounded-xl bg-black/30 border border-white/10 grid place-items-center">
+                <div className="text-center">
+                  <div className="text-sm uppercase tracking-wide text-white/50">
+                    Video Coming Soon
+                  </div>
+                  <div className="mt-2 text-white/70 text-xs">
+                    Add <code>hero_youtube_url</code> in <em>mf_site_settings</em>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <h1 className="mt-8 text-3xl sm:text-5xl font-extrabold tracking-tight">
             {settings?.hero_title || "We build closers"}
           </h1>
           <p className="mt-3 text-white/70 text-lg">
             {settings?.hero_sub || "High standards. High pay. No excuses."}
           </p>
 
-          {/* PROOF + CTA (no sidebar form) */}
+          {/* PROOF + CTA */}
           <div className="mt-6 grid gap-6">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-              <ProofFeed items={proof} visibleCount={10} cycleMs={2500} />
+              {/* Show 4 sales with upgraded animation */}
+              <ProofFeed
+                items={proof}
+                visibleCount={4}
+                cycleMs={3000}
+                blurTransition
+                bigSlides
+              />
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <div>
                 <h3 className="text-lg font-semibold">Ready to apply?</h3>
                 <p className="text-sm text-white/70">
-                  Click “Book Now” to answer a few quick questions and pick a
-                  time. No side forms — straight to the point.
+                  Click “Book Now” to answer a few quick questions and pick a time. No side forms — straight to the point.
                 </p>
               </div>
               <button
@@ -296,9 +351,7 @@ export default function Landing() {
         <section className="mt-16">
           <h2 className="text-xl font-bold">Disclaimer</h2>
           <p className="text-sm text-white/60 mt-2">
-            This is an independent contractor opportunity. Earnings are
-            commission-based and vary by individual effort, skill, and market
-            conditions. No guarantees of income. You must be 18+.
+            This is an independent contractor opportunity. Earnings are commission-based and vary by individual effort, skill, and market conditions. No guarantees of income. You must be 18+.
           </p>
         </section>
       </main>
@@ -321,7 +374,7 @@ export default function Landing() {
               </button>
             </div>
 
-            {/* STEP: CONTACT INFO (FIRST) */}
+            {/* STEP: CONTACT */}
             {step === "contact" && (
               <div className="grid gap-3">
                 <div className="grid gap-2">
@@ -373,7 +426,7 @@ export default function Landing() {
               </div>
             )}
 
-            {/* STEP: QUALIFY (SAME QUALIFYFORM AS BEFORE) */}
+            {/* STEP: QUALIFY */}
             {step === "qualify" && (
               <div>
                 <button
@@ -385,14 +438,12 @@ export default function Landing() {
                 <QualifyForm
                   questions={questions}
                   onSubmit={async (values) => {
-                    // Build answers payload from QualifyForm
                     const answers = questions.map((q) => ({
                       question_id: q.id,
                       question: q.question_text,
                       value: values[q.id] || "",
                     }));
 
-                    // Update lead as complete, attach answers and (re)save contact
                     const { error: upErr } = await supabase
                       .from("mf_leads")
                       .update({
@@ -400,7 +451,7 @@ export default function Landing() {
                         email: leadDraft?.email || email || null,
                         phone: leadDraft?.phone || phone || null,
                         answers,
-                        is_complete: true, // ⬅️ mark complete now
+                        is_complete: true,
                         stage: "qualified",
                       })
                       .eq("id", leadId);
@@ -411,7 +462,6 @@ export default function Landing() {
                       return;
                     }
 
-                    // Notify internal: lead completed
                     await fetch("/.netlify/functions/send-email", {
                       method: "POST",
                       body: JSON.stringify({
@@ -433,7 +483,6 @@ export default function Landing() {
                       }),
                     });
 
-                    // Move to slots
                     setLeadDraft((prev) => ({
                       ...(prev || {}),
                       full_name: prev?.full_name || fullName || null,
@@ -449,7 +498,7 @@ export default function Landing() {
               </div>
             )}
 
-            {/* STEP: SLOTS (UNCHANGED, but now ties to leadId) */}
+            {/* STEP: SLOTS */}
             {step === "slots" && (
               <div>
                 <button
@@ -477,12 +526,11 @@ export default function Landing() {
                             end_utc: slt.endUtc,
                             timezone: settings?.brand_tz || "America/Chicago",
                           };
-                          // Insert appointment (unique index prevents double-book)
                           const { error } = await supabase
                             .from("mf_appointments")
                             .insert([
                               {
-                                lead_id: leadId || null, // ⬅️ link to lead
+                                lead_id: leadId || null,
                                 full_name: appt.full_name,
                                 email: appt.email,
                                 phone: appt.phone,
@@ -499,7 +547,6 @@ export default function Landing() {
                             return;
                           }
 
-                          // Update lead stage to 'booked'
                           if (leadId) {
                             await supabase
                               .from("mf_leads")
@@ -507,7 +554,6 @@ export default function Landing() {
                               .eq("id", leadId);
                           }
 
-                          // Email "appointment"
                           await fetch("/.netlify/functions/send-email", {
                             method: "POST",
                             body: JSON.stringify({
@@ -520,7 +566,7 @@ export default function Landing() {
                                 `Name: ${appt.full_name || "-"}`,
                                 `Email: ${appt.email || "-"}`,
                                 `Phone: ${appt.phone || "-"}`,
-                                `When (UTC): ${slt.startUtc} → ${slt.endUtc}`,
+                                `When (UTC): ${slt.start_utc} → ${slt.end_utc}`,
                                 `Organizer TZ: ${settings?.brand_tz || "America/Chicago"}`,
                                 "",
                                 "Answers:",
@@ -532,7 +578,6 @@ export default function Landing() {
                             }),
                           });
 
-                          // Offer ICS
                           const ics = buildICS({
                             title: "Momentum Financial — Intro Call",
                             description: "Intro call with Momentum Financial",
