@@ -29,7 +29,7 @@ function mapRow(row) {
     when: row.happened_at ? new Date(row.happened_at) :
           row.created_at ? new Date(row.created_at) : null,
     amountStr: amount != null ? fmt(amount) : null,
-    pinned: !!row.is_pinned,
+    pinned: !!row.is_pinned, // keep for sorting only
     _raw: row,
   };
 }
@@ -118,7 +118,7 @@ export default function ProofFeed({
 }
 
 function DiscordCard({ item, blur }) {
-  const { name, avatar, text, image, amountStr, pinned } = item;
+  const { name, avatar, text, image, amountStr } = item;
 
   return (
     <div
@@ -131,7 +131,7 @@ function DiscordCard({ item, blur }) {
       ].join(" ")}
       style={blur ? { animation: "pfFade 600ms ease both, pfSlide 600ms ease both" } : undefined}
     >
-      {/* Header line = avatar + name + amount chip (timestamp removed) */}
+      {/* Header line = avatar + name + amount chip (no pinned badge, no timestamp) */}
       <div className="flex items-start gap-3">
         {/* Avatar (fallback initials) */}
         {avatar ? (
@@ -150,11 +150,7 @@ function DiscordCard({ item, blur }) {
           <div className="flex items-baseline gap-2">
             <span className="font-semibold">{name}</span>
             <div className="ml-auto flex items-center gap-2">
-              {pinned && (
-                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 border border-white/10">
-                  Pinned
-                </span>
-              )}
+              {/* Pinned badge removed intentionally */}
               {amountStr && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded bg-white text-black">
                   {amountStr}
@@ -180,7 +176,7 @@ function DiscordCard({ item, blur }) {
         </div>
       </div>
 
-      {/* remove weird underline (divider) and stretch */}
+      {/* stretch to equal height; no divider */}
       <div className="flex-1" />
 
       <style>{`
