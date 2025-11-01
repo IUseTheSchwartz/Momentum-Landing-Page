@@ -64,7 +64,7 @@ export default function Landing() {
         .order("sort_order", { ascending: true });
       setQuestions(q || []);
 
-      // proof posts (STRICT to your schema + proper ordering)
+      // proof posts
       const { data: p } = await supabase
         .from("mf_proof_posts")
         .select(
@@ -242,6 +242,7 @@ export default function Landing() {
         "--brand-accent": brandVars.accent,
       }}
     >
+      {/* Header (no top-right CTA) */}
       <header className="mx-auto max-w-6xl px-4 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {settings?.logo_url ? (
@@ -253,16 +254,8 @@ export default function Landing() {
             {settings?.site_name || "Momentum Financial"}
           </span>
         </div>
-        <a
-          href="#apply"
-          onClick={(e) => {
-            e.preventDefault();
-            openModal();
-          }}
-          className="rounded-lg bg-white text-black px-4 py-2 font-semibold no-underline"
-        >
-          Book Now
-        </a>
+        {/* CTA removed */}
+        <div />
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-24">
@@ -295,6 +288,16 @@ export default function Landing() {
             </div>
           )}
 
+          {/* New single CTA directly under video */}
+          <div className="mt-4">
+            <button
+              onClick={openModal}
+              className="rounded-lg bg-white text-black px-5 py-3 font-semibold w-full sm:w-auto"
+            >
+              Book Call
+            </button>
+          </div>
+
           <h1 className="mt-8 text-3xl sm:text-5xl font-extrabold tracking-tight">
             {settings?.hero_title || "We build closers"}
           </h1>
@@ -302,27 +305,10 @@ export default function Landing() {
             {settings?.hero_sub || "High standards. High pay. No excuses."}
           </p>
 
-          {/* PROOF + CTA */}
-          <div className="mt-6 grid gap-6">
+          {/* PROOF only (CTA card removed) */}
+          <div className="mt-6">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-              {/* Show 4 with upgraded animation */}
               <ProofFeed items={proof} visibleCount={4} cycleMs={3000} blurTransition bigSlides />
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div>
-                <h3 className="text-lg font-semibold">Ready to apply?</h3>
-                <p className="text-sm text-white/70">
-                  Click “Book Now” to answer a few quick questions and pick a time. No side
-                  forms — straight to the point.
-                </p>
-              </div>
-              <button
-                onClick={() => openModal()}
-                className="rounded-lg bg-white text-black px-4 py-2 font-semibold w-full sm:w-auto"
-              >
-                Book Now
-              </button>
             </div>
           </div>
         </section>
@@ -348,7 +334,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Disclaimer removed by request */}
+        {/* Disclaimer removed previously */}
       </main>
 
       {/* BOOKING MODAL */}
