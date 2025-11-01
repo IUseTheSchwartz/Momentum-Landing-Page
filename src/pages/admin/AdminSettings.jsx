@@ -149,39 +149,29 @@ export default function AdminSettings() {
         />
       </Row>
 
-      <Row label="Primary Color">
-        <input
-          type="color"
-          value={s.brand_primary || "#6b8cff"}
-          onChange={(e) => {
-            const v = e.target.value;
-            setS({ ...s, brand_primary: v });
-            savePartial({ brand_primary: v }).catch(console.error);
-          }}
-        />
-      </Row>
-
-      <Row label="Accent Color">
-        <input
-          type="color"
-          value={s.brand_accent || "#9b5cff"}
-          onChange={(e) => {
-            const v = e.target.value;
-            setS({ ...s, brand_accent: v });
-            savePartial({ brand_accent: v }).catch(console.error);
-          }}
-        />
-      </Row>
-
-      <Row label="Calendly (optional)">
+      {/* NEW: YouTube controls */}
+      <Row label="Hero YouTube URL">
         <input
           className="w-full bg-white/5 border border-white/15 p-2 rounded"
-          value={s.calendly_url || ""}
-          onChange={(e) => setS({ ...s, calendly_url: e.target.value })}
-          onBlur={() => savePartial({ calendly_url: s.calendly_url || null })}
-          placeholder="https://calendly.com/..."
+          value={s.hero_youtube_url || ""}
+          onChange={(e) => setS({ ...s, hero_youtube_url: e.target.value })}
+          onBlur={() => savePartial({ hero_youtube_url: s.hero_youtube_url || null })}
+          placeholder="https://www.youtube.com/watch?v=..."
         />
       </Row>
+
+      <Row label="YouTube URL (fallback)">
+        <input
+          className="w-full bg-white/5 border border-white/15 p-2 rounded"
+          value={s.youtube_url || ""}
+          onChange={(e) => setS({ ...s, youtube_url: e.target.value })}
+          onBlur={() => savePartial({ youtube_url: s.youtube_url || null })}
+          placeholder="https://www.youtube.com/watch?v=..."
+        />
+      </Row>
+
+      {/* Removed: Primary/Accent color pickers */}
+      {/* Removed: Calendly URL */}
 
       <button onClick={saveAll} disabled={saving} className="mt-4 px-4 py-2 rounded-lg bg-white text-black">
         {saving ? "Saving…" : "Save"}
