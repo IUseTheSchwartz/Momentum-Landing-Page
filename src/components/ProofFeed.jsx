@@ -91,7 +91,7 @@ export default function ProofFeed({
           key={slideKey}
           className={`grid transition-all duration-700 ease-[cubic-bezier(.22,.61,.36,1)] ${
             bigSlides ? "md:grid-cols-4 grid-cols-2 gap-3" : "md:grid-cols-4 grid-cols-2 gap-2"
-          }`}
+          } auto-rows-fr`}
         >
           {pages[page].map((it, i) => (
             <DiscordCard key={`${page}-${i}`} item={it} blur={blurTransition} />
@@ -118,10 +118,7 @@ export default function ProofFeed({
 }
 
 function DiscordCard({ item, blur }) {
-  const { name, avatar, text, image, when, amountStr, pinned } = item;
-  const whenStr = when
-    ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-    : null;
+  const { name, avatar, text, image, amountStr, pinned } = item;
 
   return (
     <div
@@ -129,11 +126,12 @@ function DiscordCard({ item, blur }) {
         "rounded-xl border border-white/10 bg-[#2b2d31] p-3",
         "shadow-lg shadow-black/30",
         "transition-all duration-500",
+        "h-full flex flex-col",               // equal height
         blur ? "hover:scale-[1.01]" : "",
       ].join(" ")}
       style={blur ? { animation: "pfFade 600ms ease both, pfSlide 600ms ease both" } : undefined}
     >
-      {/* Header line = avatar + name + time + amount chip */}
+      {/* Header line = avatar + name + amount chip (timestamp removed) */}
       <div className="flex items-start gap-3">
         {/* Avatar (fallback initials) */}
         {avatar ? (
@@ -151,7 +149,6 @@ function DiscordCard({ item, blur }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="font-semibold">{name}</span>
-            {whenStr && <span className="text-xs text-white/50">{whenStr}</span>}
             <div className="ml-auto flex items-center gap-2">
               {pinned && (
                 <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 border border-white/10">
@@ -183,8 +180,8 @@ function DiscordCard({ item, blur }) {
         </div>
       </div>
 
-      {/* subtle divider shimmer like Discord hover */}
-      <div className="mt-3 h-px w-full bg-white/10" />
+      {/* remove weird underline (divider) and stretch */}
+      <div className="flex-1" />
 
       <style>{`
 @keyframes pfFade {
