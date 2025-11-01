@@ -259,7 +259,7 @@ export default function Landing() {
             e.preventDefault();
             openModal();
           }}
-          className="rounded-lg bg-white text-black px-4 py-2 font-semibold"
+          className="rounded-lg bg-white text-black px-4 py-2 font-semibold no-underline"
         >
           Book Now
         </a>
@@ -348,15 +348,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* DISCLAIMER */}
-        <section className="mt-16">
-          <h2 className="text-xl font-bold">Disclaimer</h2>
-          <p className="text-sm text-white/60 mt-2">
-            This is an independent contractor opportunity. Earnings are
-            commission-based and vary by individual effort, skill, and market
-            conditions. No guarantees of income. You must be 18+.
-          </p>
-        </section>
+        {/* Disclaimer removed by request */}
       </main>
 
       {/* BOOKING MODAL */}
