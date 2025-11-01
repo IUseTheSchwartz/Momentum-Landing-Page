@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient.js";
 
-// Use your new stage set
 const STAGES = ["new", "no-show", "passed", "failed"];
 
 export default function AdminLeads() {
@@ -13,7 +12,6 @@ export default function AdminLeads() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  // Appointments grouped by lead_id
   const [apptsByLead, setApptsByLead] = useState({});
   const [loadingAppts, setLoadingAppts] = useState(false);
 
@@ -23,9 +21,8 @@ export default function AdminLeads() {
     const { data, error } = await supabase
       .from("mf_leads")
       .select("*")
-      .order("submitted_at", { ascending: false }) // your schema
+      .order("submitted_at", { ascending: false })
       .limit(1000);
-
     if (error) {
       console.error(error);
       setErr(error.message || "Load failed");
@@ -43,13 +40,11 @@ export default function AdminLeads() {
       .select("id, lead_id, start_utc, end_utc, status, full_name, email, phone")
       .order("start_utc", { ascending: false })
       .limit(2000);
-
     if (!error) {
       const map = {};
       (data || []).forEach((a) => {
-        if (!a.lead_id) return; // only group appointments tied to a lead
-        if (!map[a.lead_id]) map[a.lead_id] = [];
-        map[a.lead_id].push(a);
+        if (!a.lead_id) return;
+        (map[a.lead_id] ||= []).push(a);
       });
       setApptsByLead(map);
     }
@@ -168,8 +163,9 @@ export default function AdminLeads() {
         <button onClick={clearFilters} className="px-3 py-1.5 rounded bg-white/10">Clear filters</button>
       </div>
 
-      <div className="overflow-auto rounded-xl border border-white/10">
-        <table className="min-w-full text-sm">
+      {/* No horizontal scroll: make table fluid and wrap content */}
+      <div className="rounded-xl border border-white/10">
+        <table className="w-full text-sm table-auto">
           <thead className="text-white/60 bg-black/20">
             <tr>
               <th className="p-2 text-left">When</th>
@@ -189,24 +185,24 @@ export default function AdminLeads() {
                 <React.Fragment key={r.id}>
                   {/* Lead row */}
                   <tr className="border-t border-white/10 align-top">
-                    <td className="p-2">{fmtWhen(r.submitted_at || r.created_at)}</td>
+                    <td className="p-2 whitespace-nowrap">{fmtWhen(r.submitted_at || r.created_at)}</td>
                     <td className="p-2">
                       <input
-                        className="bg-white/5 border border-white/15 p-1.5 rounded w-44"
+                        className="bg-white/5 border border-white/15 p-1.5 rounded w-full max-w-[220px]"
                         value={r.full_name || ""}
                         onChange={(e) => patchLead(r.id, { full_name: e.target.value })}
                       />
                     </td>
-                    <td className="p-2">
+                    <td className="p-2 break-words max-w-[240px]">
                       <input
-                        className="bg-white/5 border border-white/15 p-1.5 rounded w-56"
+                        className="bg-white/5 border border-white/15 p-1.5 rounded w-full"
                         value={r.email || ""}
                         onChange={(e) => patchLead(r.id, { email: e.target.value })}
                       />
                     </td>
-                    <td className="p-2">
+                    <td className="p-2 break-words max-w-[160px]">
                       <input
-                        className="bg-white/5 border border-white/15 p-1.5 rounded w-40"
+                        className="bg-white/5 border border-white/15 p-1.5 rounded w-full"
                         value={r.phone || ""}
                         onChange={(e) => patchLead(r.id, { phone: e.target.value })}
                       />
@@ -223,25 +219,30 @@ export default function AdminLeads() {
                         ))}
                       </select>
                     </td>
+                    {/* READ-ONLY badge for completion */}
                     <td className="p-2">
-                      <input
-                        type="checkbox"
-                        checked={!!r.is_complete}
-                        onChange={(e) => patchLead(r.id, { is_complete: e.target.checked })}
-                      />
+                      {r.is_complete ? (
+                        <span className="px-2 py-0.5 rounded text-xs bg-green-500/20 text-green-300 border border-green-400/30">
+                          Complete
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-xs bg-yellow-500/20 text-yellow-200 border border-yellow-400/30">
+                          Incomplete
+                        </span>
+                      )}
                     </td>
-                    <td className="p-2">
+                    <td className="p-2 max-w-[240px]">
                       <textarea
-                        className="bg-white/5 border border-white/15 p-1.5 rounded w-64 min-h-[40px]"
+                        className="bg-white/5 border border-white/15 p-1.5 rounded w-full min-h-[40px]"
                         placeholder="Internal notes…"
                         value={r.note || ""}
                         onChange={(e) => patchLead(r.id, { note: e.target.value })}
                       />
                     </td>
-                    <td className="p-2">
-                      <ul className="space-y-1 max-w-[420px]">
+                    <td className="p-2 max-w-[360px]">
+                      <ul className="space-y-1">
                         {(r.answers || []).map((a, i) => (
-                          <li key={i} className="text-white/80">
+                          <li key={i} className="text-white/80 break-words">
                             <span className="text-white/50">{a.question || a.question_id}:</span>{" "}
                             {a.value}
                           </li>
@@ -250,7 +251,7 @@ export default function AdminLeads() {
                     </td>
                   </tr>
 
-                  {/* Appointments sub-row (only if exists) */}
+                  {/* Appointments sub-row (only if the lead booked) */}
                   {appts.length > 0 && (
                     <tr className="border-t border-white/10 bg-black/10">
                       <td className="p-2" colSpan={8}>
@@ -262,11 +263,11 @@ export default function AdminLeads() {
                                 key={a.id}
                                 className="flex flex-wrap items-center gap-3 rounded border border-white/10 p-2"
                               >
-                                <div className="text-white/70">
+                                <div className="text-white/70 whitespace-nowrap">
                                   {fmtWhen(a.start_utc)} → {fmtEndTime(a.end_utc)}
                                 </div>
-                                <div className="text-white/50">
-                                  {a.full_name || r.full_name || "-"} · {a.email || r.email || "-"} · {a.phone || r.phone || "-"}
+                                <div className="text-white/50 truncate">
+                                  {(a.full_name || r.full_name || "-")} · {(a.email || r.email || "-")} · {(a.phone || r.phone || "-")}
                                 </div>
                                 <div className="ml-auto">
                                   <select
@@ -289,7 +290,6 @@ export default function AdminLeads() {
                 </React.Fragment>
               );
             })}
-
             {!filtered.length && (
               <tr>
                 <td className="p-3 text-white/60" colSpan={8}>
@@ -300,6 +300,11 @@ export default function AdminLeads() {
           </tbody>
         </table>
       </div>
+
+      {/* Hint under the table */}
+      <p className="mt-3 text-xs text-white/50">
+        Appointments only appear under a lead when they’ve booked (linked by <code>lead_id</code>).
+      </p>
     </div>
   );
 }
