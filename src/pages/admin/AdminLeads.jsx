@@ -10,23 +10,39 @@ export default function AdminLeads() {
   const [stageFilter, setStageFilter] = useState("");
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
   async function load() {
     setLoading(true);
+    setErr("");
     const { data, error } = await supabase
       .from("mf_leads")
       .select("*")
-      .order("created_at", { ascending: false })
+      .order("submitted_at", { ascending: false }) // <-- FIX: use submitted_at
       .limit(1000);
-    if (!error) setRows(data || []);
+
+    if (error) {
+      console.error(error);
+      setErr(error.message || "Load failed");
+      setRows([]);
+    } else {
+      setRows(data || []);
+    }
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function patch(id, patch) {
     const { error } = await supabase.from("mf_leads").update(patch).eq("id", id);
-    if (!error) setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    if (!error) {
+      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    } else {
+      console.error(error);
+      alert("Update failed");
+    }
   }
 
   function clearFilters() {
@@ -55,6 +71,13 @@ export default function AdminLeads() {
     return arr;
   }, [rows, q, stageFilter, onlyIncomplete]);
 
+  function fmtWhen(r) {
+    const iso = r.submitted_at || r.created_at || null; // prefer submitted_at
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? "—" : d.toLocaleString();
+    }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between mb-3">
@@ -68,6 +91,12 @@ export default function AdminLeads() {
           </button>
         </div>
       </div>
+
+      {err && (
+        <div className="mb-3 text-sm text-red-300 bg-red-900/30 border border-red-500/30 rounded px-3 py-2">
+          {err}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-3">
         <input
@@ -114,7 +143,7 @@ export default function AdminLeads() {
           <tbody>
             {filtered.map((r) => (
               <tr key={r.id} className="border-t border-white/10 align-top">
-                <td className="p-2">{new Date(r.created_at).toLocaleString()}</td>
+                <td className="p-2">{fmtWhen(r)}</td>
                 <td className="p-2">
                   <input
                     className="bg-white/5 border border-white/15 p-1.5 rounded w-44"
