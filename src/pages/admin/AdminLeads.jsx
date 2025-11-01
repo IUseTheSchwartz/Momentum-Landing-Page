@@ -2,7 +2,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient.js";
 
-const STAGES = ["new", "qualified", "booked", "no-show", "closed-won", "closed-lost"];
+// New stage set
+const STAGES = ["new", "no-show", "passed", "failed"];
 
 export default function AdminLeads() {
   const [rows, setRows] = useState([]);
@@ -12,15 +13,18 @@ export default function AdminLeads() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  async function load() {
+  // Appointments (combined page)
+  const [appts, setAppts] = useState([]);
+  const [loadingAppts, setLoadingAppts] = useState(false);
+
+  async function loadLeads() {
     setLoading(true);
     setErr("");
     const { data, error } = await supabase
       .from("mf_leads")
       .select("*")
-      .order("submitted_at", { ascending: false }) // <-- FIX: use submitted_at
+      .order("submitted_at", { ascending: false }) // uses your schema
       .limit(1000);
-
     if (error) {
       console.error(error);
       setErr(error.message || "Load failed");
@@ -31,11 +35,23 @@ export default function AdminLeads() {
     setLoading(false);
   }
 
+  async function loadAppts() {
+    setLoadingAppts(true);
+    const { data, error } = await supabase
+      .from("mf_appointments")
+      .select("*")
+      .order("start_utc", { ascending: false })
+      .limit(500);
+    if (!error) setAppts(data || []);
+    setLoadingAppts(false);
+  }
+
   useEffect(() => {
-    load();
+    loadLeads();
+    loadAppts();
   }, []);
 
-  async function patch(id, patch) {
+  async function patchLead(id, patch) {
     const { error } = await supabase.from("mf_leads").update(patch).eq("id", id);
     if (!error) {
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -43,6 +59,11 @@ export default function AdminLeads() {
       console.error(error);
       alert("Update failed");
     }
+  }
+
+  async function updateApptStatus(id, status) {
+    const { error } = await supabase.from("mf_appointments").update({ status }).eq("id", id);
+    if (!error) setAppts((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));
   }
 
   function clearFilters() {
@@ -54,7 +75,6 @@ export default function AdminLeads() {
   const filtered = useMemo(() => {
     let arr = [...rows];
 
-    // Apply text search only if 2+ characters to avoid accidental hiding
     const needle = q.trim().toLowerCase();
     if (needle.length >= 2) {
       arr = arr.filter((r) =>
@@ -66,153 +86,209 @@ export default function AdminLeads() {
     }
 
     if (stageFilter) arr = arr.filter((r) => (r.stage || "") === stageFilter);
-    if (onlyIncomplete) arr = arr.filter((r) => r.is_complete === false); // explicit false
+    if (onlyIncomplete) arr = arr.filter((r) => r.is_complete === false);
 
     return arr;
   }, [rows, q, stageFilter, onlyIncomplete]);
 
-  function fmtWhen(r) {
-    const iso = r.submitted_at || r.created_at || null; // prefer submitted_at
+  const fmtWhen = (r) => {
+    const iso = r.submitted_at || r.created_at || null;
     if (!iso) return "—";
     const d = new Date(iso);
     return isNaN(d.getTime()) ? "—" : d.toLocaleString();
-    }
+  };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between mb-3">
-        <h3 className="text-lg font-semibold">Leads</h3>
-        <div className="flex gap-2 items-center">
-          <span className="text-xs text-white/60">
-            Showing <b>{filtered.length}</b> of <b>{rows.length}</b>
-          </span>
-          <button onClick={load} className="px-3 py-1.5 rounded bg-white/10">
-            {loading ? "…" : "Refresh"}
+    <div className="space-y-8">
+      {/* ===== Leads ===== */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between mb-3">
+          <h3 className="text-lg font-semibold">Leads</h3>
+          <div className="flex gap-2 items-center">
+            <span className="text-xs text-white/60">
+              Showing <b>{filtered.length}</b> of <b>{rows.length}</b>
+            </span>
+            <button onClick={loadLeads} className="px-3 py-1.5 rounded bg-white/10">
+              {loading ? "…" : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {err && (
+          <div className="mb-3 text-sm text-red-300 bg-red-900/30 border border-red-500/30 rounded px-3 py-2">
+            {err}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 mb-3">
+          <input
+            className="bg-white/5 border border-white/15 p-2 rounded w-56"
+            placeholder="Search (min 2 chars)…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <select
+            className="bg-white/5 border border-white/15 p-2 rounded text-sm"
+            value={stageFilter}
+            onChange={(e) => setStageFilter(e.target.value)}
+          >
+            <option value="">All stages</option>
+            {STAGES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <label className="text-sm flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={onlyIncomplete}
+              onChange={(e) => setOnlyIncomplete(e.target.checked)}
+            />
+            Incomplete only
+          </label>
+          <button onClick={clearFilters} className="px-3 py-1.5 rounded bg-white/10">Clear filters</button>
+        </div>
+
+        <div className="overflow-auto rounded-xl border border-white/10">
+          <table className="min-w-full text-sm">
+            <thead className="text-white/60 bg-black/20">
+              <tr>
+                <th className="p-2 text-left">When</th>
+                <th className="p-2 text-left">Name</th>
+                <th className="p-2 text-left">Email</th>
+                <th className="p-2 text-left">Phone</th>
+                <th className="p-2 text-left">Stage</th>
+                <th className="p-2 text-left">Complete</th>
+                <th className="p-2 text-left">Note</th>
+                <th className="p-2 text-left">Answers</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id} className="border-t border-white/10 align-top">
+                  <td className="p-2">{fmtWhen(r)}</td>
+                  <td className="p-2">
+                    <input
+                      className="bg-white/5 border border-white/15 p-1.5 rounded w-44"
+                      value={r.full_name || ""}
+                      onChange={(e) => patchLead(r.id, { full_name: e.target.value })}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      className="bg-white/5 border border-white/15 p-1.5 rounded w-56"
+                      value={r.email || ""}
+                      onChange={(e) => patchLead(r.id, { email: e.target.value })}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      className="bg-white/5 border border-white/15 p-1.5 rounded w-40"
+                      value={r.phone || ""}
+                      onChange={(e) => patchLead(r.id, { phone: e.target.value })}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <select
+                      className="bg-white/5 border border-white/15 p-1.5 rounded"
+                      value={r.stage || ""}
+                      onChange={(e) => patchLead(r.id, { stage: e.target.value || null })}
+                    >
+                      <option value="">(none)</option>
+                      {STAGES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="checkbox"
+                      checked={!!r.is_complete}
+                      onChange={(e) => patchLead(r.id, { is_complete: e.target.checked })}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <textarea
+                      className="bg-white/5 border border-white/15 p-1.5 rounded w-64 min-h-[40px]"
+                      placeholder="Internal notes…"
+                      value={r.note || ""}
+                      onChange={(e) => patchLead(r.id, { note: e.target.value })}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <ul className="space-y-1 max-w-[420px]">
+                      {(r.answers || []).map((a, i) => (
+                        <li key={i} className="text-white/80">
+                          <span className="text-white/50">{a.question || a.question_id}:</span>{" "}
+                          {a.value}
+                        </li>
+                      ))}
+                    </ul>
+                  </td>
+                </tr>
+              ))}
+              {!filtered.length && (
+                <tr>
+                  <td className="p-3 text-white/60" colSpan={8}>
+                    No leads match.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ===== Appointments (combined on the same page) ===== */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold">Appointments</h3>
+          <button className="px-3 py-1.5 rounded bg-white/10" onClick={loadAppts}>
+            {loadingAppts ? "…" : "Refresh"}
           </button>
         </div>
-      </div>
-
-      {err && (
-        <div className="mb-3 text-sm text-red-300 bg-red-900/30 border border-red-500/30 rounded px-3 py-2">
-          {err}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2 mb-3">
-        <input
-          className="bg-white/5 border border-white/15 p-2 rounded w-56"
-          placeholder="Search (min 2 chars)…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <select
-          className="bg-white/5 border border-white/15 p-2 rounded text-sm"
-          value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value)}
-        >
-          <option value="">All stages</option>
-          {STAGES.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-        <label className="text-sm flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={onlyIncomplete}
-            onChange={(e) => setOnlyIncomplete(e.target.checked)}
-          />
-          Incomplete only
-        </label>
-        <button onClick={clearFilters} className="px-3 py-1.5 rounded bg-white/10">Clear filters</button>
-      </div>
-
-      <div className="overflow-auto rounded-xl border border-white/10">
-        <table className="min-w-full text-sm">
-          <thead className="text-white/60 bg-black/20">
-            <tr>
-              <th className="p-2 text-left">When</th>
-              <th className="p-2 text-left">Name</th>
-              <th className="p-2 text-left">Email</th>
-              <th className="p-2 text-left">Phone</th>
-              <th className="p-2 text-left">Stage</th>
-              <th className="p-2 text-left">Complete</th>
-              <th className="p-2 text-left">Note</th>
-              <th className="p-2 text-left">Answers</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => (
-              <tr key={r.id} className="border-t border-white/10 align-top">
-                <td className="p-2">{fmtWhen(r)}</td>
-                <td className="p-2">
-                  <input
-                    className="bg-white/5 border border-white/15 p-1.5 rounded w-44"
-                    value={r.full_name || ""}
-                    onChange={(e) => patch(r.id, { full_name: e.target.value })}
-                  />
-                </td>
-                <td className="p-2">
-                  <input
-                    className="bg-white/5 border border-white/15 p-1.5 rounded w-56"
-                    value={r.email || ""}
-                    onChange={(e) => patch(r.id, { email: e.target.value })}
-                  />
-                </td>
-                <td className="p-2">
-                  <input
-                    className="bg-white/5 border border-white/15 p-1.5 rounded w-40"
-                    value={r.phone || ""}
-                    onChange={(e) => patch(r.id, { phone: e.target.value })}
-                  />
-                </td>
-                <td className="p-2">
-                  <select
-                    className="bg-white/5 border border-white/15 p-1.5 rounded"
-                    value={r.stage || ""}
-                    onChange={(e) => patch(r.id, { stage: e.target.value || null })}
-                  >
-                    <option value="">(none)</option>
-                    {STAGES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </td>
-                <td className="p-2">
-                  <input
-                    type="checkbox"
-                    checked={!!r.is_complete}
-                    onChange={(e) => patch(r.id, { is_complete: e.target.checked })}
-                  />
-                </td>
-                <td className="p-2">
-                  <textarea
-                    className="bg-white/5 border border-white/15 p-1.5 rounded w-64 min-h-[40px]"
-                    placeholder="Internal notes…"
-                    value={r.note || ""}
-                    onChange={(e) => patch(r.id, { note: e.target.value })}
-                  />
-                </td>
-                <td className="p-2">
-                  <ul className="space-y-1 max-w-[420px]">
-                    {(r.answers || []).map((a, i) => (
-                      <li key={i} className="text-white/80">
-                        <span className="text-white/50">{a.question || a.question_id}:</span>{" "}
-                        {a.value}
-                      </li>
-                    ))}
-                  </ul>
-                </td>
-              </tr>
-            ))}
-            {!filtered.length && (
+        <div className="overflow-auto">
+          <table className="min-w-full text-sm">
+            <thead className="text-white/60">
               <tr>
-                <td className="p-3 text-white/60" colSpan={8}>
-                  No leads match.
-                </td>
+                <th className="p-2 text-left">When (local)</th>
+                <th className="p-2 text-left">Name</th>
+                <th className="p-2 text-left">Email</th>
+                <th className="p-2 text-left">Phone</th>
+                <th className="p-2 text-left">Status</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {appts.map((r) => (
+                <tr key={r.id} className="border-t border-white/10">
+                  <td className="p-2">
+                    {new Date(r.start_utc).toLocaleString()} → {new Date(r.end_utc).toLocaleTimeString()}
+                  </td>
+                  <td className="p-2">{r.full_name || "-"}</td>
+                  <td className="p-2">{r.email || "-"}</td>
+                  <td className="p-2">{r.phone || "-"}</td>
+                  <td className="p-2">
+                    <select
+                      className="bg-white/5 border border-white/15 p-1 rounded"
+                      value={r.status || "scheduled"}
+                      onChange={(e) => updateApptStatus(r.id, e.target.value)}
+                    >
+                      {["scheduled", "canceled", "completed", "no-show"].map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+              {!appts.length && (
+                <tr>
+                  <td className="p-3 text-white/60" colSpan={5}>
+                    No appointments yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
