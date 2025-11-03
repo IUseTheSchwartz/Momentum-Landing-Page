@@ -5,6 +5,7 @@ import { readUTM } from "../lib/utm.js";
 import ProofFeed from "../components/ProofFeed.jsx";
 import QualifyForm from "../components/QualifyForm.jsx";
 import { buildICS } from "../lib/ics.js";
+import { initAnalytics } from "../lib/analytics.js"; // ← analytics
 
 // helper: extract YT ID from various URL formats
 function extractYouTubeId(url = "") {
@@ -46,6 +47,9 @@ export default function Landing() {
   const [phone, setPhone] = useState("");
 
   useEffect(() => {
+    // lightweight visit + time-on-page tracking
+    initAnalytics();
+
     (async () => {
       // site settings
       const { data: s } = await supabase
@@ -64,7 +68,7 @@ export default function Landing() {
         .order("sort_order", { ascending: true });
       setQuestions(q || []);
 
-      // proof posts
+      // proof posts (STRICT to your schema + ordering)
       const { data: p } = await supabase
         .from("mf_proof_posts")
         .select(
@@ -177,7 +181,7 @@ export default function Landing() {
           phone: ph || null,
           utm,
           is_complete: false,
-          stage: "new",
+          stage: "new", // keep simple; Admin will move to passed/failed/no-show
         },
       ])
       .select("id")
@@ -305,7 +309,7 @@ export default function Landing() {
             {settings?.hero_sub || "High standards. High pay. No excuses."}
           </p>
 
-          {/* PROOF only (CTA card removed) */}
+          {/* PROOF only */}
           <div className="mt-6">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
               <ProofFeed items={proof} visibleCount={4} cycleMs={3000} blurTransition bigSlides />
@@ -334,7 +338,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Disclaimer removed previously */}
+        {/* Disclaimer removed */}
       </main>
 
       {/* BOOKING MODAL */}
@@ -433,7 +437,7 @@ export default function Landing() {
                         phone: leadDraft?.phone || phone || null,
                         answers,
                         is_complete: true,
-                        stage: "qualified",
+                        // no stage change here; keep "new" until you evaluate in Admin
                       })
                       .eq("id", leadId);
 
@@ -528,12 +532,8 @@ export default function Landing() {
                             return;
                           }
 
-                          if (leadId) {
-                            await supabase
-                              .from("mf_leads")
-                              .update({ stage: "booked" })
-                              .eq("id", leadId);
-                          }
+                          // Do not auto-change lead stage to "booked" — Admin will manage stages
+                          // await supabase.from("mf_leads").update({ stage: "booked" }).eq("id", leadId);
 
                           await fetch("/.netlify/functions/send-email", {
                             method: "POST",
@@ -547,7 +547,7 @@ export default function Landing() {
                                 `Name: ${appt.full_name || "-"}`,
                                 `Email: ${appt.email || "-"}`,
                                 `Phone: ${appt.phone || "-"}`,
-                                `When (UTC): ${slt.start_utc} → ${slt.end_utc}`,
+                                `When (UTC): ${appt.start_utc} → ${appt.end_utc}`,
                                 `Organizer TZ: ${settings?.brand_tz || "America/Chicago"}`,
                                 "",
                                 "Answers:",
