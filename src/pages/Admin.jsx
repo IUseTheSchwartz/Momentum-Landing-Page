@@ -7,11 +7,11 @@ import AdminQuestions from "./admin/AdminQuestions.jsx";
 import AdminProof from "./admin/AdminProof.jsx";
 import AdminLeads from "./admin/AdminLeads.jsx";
 import AdminAvailability from "./admin/AdminAvailability.jsx";
-// import AdminAppointments from "./admin/AdminAppointments.jsx"; // removed
+import AdminAnalytics from "./admin/AdminAnalytics.jsx"; // ← add this
 
 export default function Admin() {
   const [tab, setTab] = useState("settings");
-  const tabs = ["settings", "questions", "proof", "leads", "availability"]; // removed "appointments"
+  const tabs = ["settings", "questions", "proof", "leads", "availability", "analytics"]; // ← add
 
   return (
     <div className="min-h-screen bg-[#1e1f22] text-white p-6">
@@ -21,7 +21,7 @@ export default function Admin() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-lg ${tab === t ? "bg-white text-black" : "bg-white/10"}`}
+              className={`px-4 py-2 rounded-lg ${tab === t ? "bg:white text-black bg-white" : "bg-white/10"}`}
             >
               {t}
             </button>
@@ -43,7 +43,7 @@ export default function Admin() {
         {tab === "proof" && <AdminProof />}
         {tab === "leads" && <AdminLeads />}
         {tab === "availability" && <AdminAvailability />}
-        {/* {tab === "appointments" && <AdminAppointments />} // removed */}
+        {tab === "analytics" && <AdminAnalytics />} {/* ← render analytics */}
       </div>
     </div>
   );
