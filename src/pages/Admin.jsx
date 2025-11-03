@@ -7,11 +7,11 @@ import AdminQuestions from "./admin/AdminQuestions.jsx";
 import AdminProof from "./admin/AdminProof.jsx";
 import AdminLeads from "./admin/AdminLeads.jsx";
 import AdminAvailability from "./admin/AdminAvailability.jsx";
-import AdminAppointments from "./admin/AdminAppointments.jsx";
+// import AdminAppointments from "./admin/AdminAppointments.jsx"; // removed
 
 export default function Admin() {
   const [tab, setTab] = useState("settings");
-  const tabs = ["settings", "questions", "proof", "leads", "availability", "appointments"];
+  const tabs = ["settings", "questions", "proof", "leads", "availability"]; // removed "appointments"
 
   return (
     <div className="min-h-screen bg-[#1e1f22] text-white p-6">
@@ -43,7 +43,7 @@ export default function Admin() {
         {tab === "proof" && <AdminProof />}
         {tab === "leads" && <AdminLeads />}
         {tab === "availability" && <AdminAvailability />}
-        {tab === "appointments" && <AdminAppointments />}
+        {/* {tab === "appointments" && <AdminAppointments />} // removed */}
       </div>
     </div>
   );
