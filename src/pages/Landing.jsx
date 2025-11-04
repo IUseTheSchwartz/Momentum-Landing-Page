@@ -1,4 +1,3 @@
-// File: src/pages/Landing.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import { readUTM } from "../lib/utm.js";
@@ -485,7 +484,16 @@ export default function Landing() {
                                 tz,
                               }),
                             });
-                            if (!res.ok) throw new Error("Slot just got taken. Pick another.");
+                            if (!res.ok) {
+                              const txt = await res.text().catch(() => "");
+                              let msg = "Could not book. Try another slot.";
+                              try {
+                                const j = JSON.parse(txt);
+                                if (j?.error) msg = j.error;
+                              } catch {}
+                              if (res.status === 409) msg = "That slot was just taken. Pick another.";
+                              throw new Error(msg);
+                            }
                             alert("Booked! We’ll email the details.");
                             setOpen(false);
                           } catch (e) {
