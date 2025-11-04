@@ -2,11 +2,81 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient.js";
 
+/* ---------- Helpers for 24h <-> 12h with AM/PM ---------- */
+function split24To12(t = "09:00") {
+  const [H = "09", M = "00"] = String(t || "").split(":");
+  let h = Math.max(0, Math.min(23, parseInt(H, 10) || 0));
+  const m = Math.max(0, Math.min(59, parseInt(M, 10) || 0));
+  const ap = h >= 12 ? "PM" : "AM";
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return {
+    h12: String(h12).padStart(2, "0"),
+    m: String(m).padStart(2, "0"),
+    ap,
+  };
+}
+function join12To24({ h12 = "09", m = "00", ap = "AM" }) {
+  let h = Math.max(1, Math.min(12, parseInt(h12, 10) || 12));
+  const mm = Math.max(0, Math.min(59, parseInt(m, 10) || 0));
+  let H = ap === "PM" ? (h % 12) + 12 : (h % 12);
+  if (ap === "AM" && h === 12) H = 0;
+  return String(H).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+}
+
+/* ---------- Small UI bits ---------- */
 function Row({ label, children }) {
   return (
     <div className="grid grid-cols-3 items-center gap-3 py-2">
       <div className="text-sm text-white/70">{label}</div>
       <div className="col-span-2">{children}</div>
+    </div>
+  );
+}
+
+/* ---------- Time input with AM/PM ---------- */
+function TimeInput({ value, onChange }) {
+  const parts = split24To12(value);
+  function set(patch) {
+    const next = { ...parts, ...patch };
+    onChange(join12To24(next));
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        aria-label="Hour"
+        inputMode="numeric"
+        pattern="\d*"
+        className="w-14 bg-white/5 border border-white/15 p-2 rounded text-center"
+        value={parts.h12}
+        onChange={(e) => {
+          const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+          set({ h12: v });
+        }}
+        placeholder="hh"
+      />
+      <span className="opacity-70">:</span>
+      <input
+        aria-label="Minutes"
+        inputMode="numeric"
+        pattern="\d*"
+        className="w-14 bg-white/5 border border-white/15 p-2 rounded text-center"
+        value={parts.m}
+        onChange={(e) => {
+          const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+          set({ m: v });
+        }}
+        placeholder="mm"
+      />
+      <select
+        aria-label="AM/PM"
+        className="bg-white/5 border border-white/15 p-2 rounded"
+        value={parts.ap}
+        onChange={(e) => set({ ap: e.target.value })}
+      >
+        <option>AM</option>
+        <option>PM</option>
+      </select>
     </div>
   );
 }
@@ -54,7 +124,11 @@ export default function AdminAvailability() {
           .eq("id", row.id);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from("mf_availability").insert([{ ...row }]).select().single();
+        const { data, error } = await supabase
+          .from("mf_availability")
+          .insert([{ ...row }])
+          .select()
+          .single();
         if (error) throw error;
         setRow(data);
       }
@@ -111,7 +185,9 @@ export default function AdminAvailability() {
             type="number"
             className="w-full bg-white/5 border border-white/15 p-2 rounded"
             value={row.slot_minutes}
-            onChange={(e) => setRow({ ...row, slot_minutes: Number(e.target.value) })}
+            onChange={(e) =>
+              setRow({ ...row, slot_minutes: Number(e.target.value) })
+            }
           />
         </Row>
         <Row label="Buffer minutes">
@@ -119,7 +195,9 @@ export default function AdminAvailability() {
             type="number"
             className="w-full bg-white/5 border border-white/15 p-2 rounded"
             value={row.buffer_minutes}
-            onChange={(e) => setRow({ ...row, buffer_minutes: Number(e.target.value) })}
+            onChange={(e) =>
+              setRow({ ...row, buffer_minutes: Number(e.target.value) })
+            }
           />
         </Row>
         <Row label="Min lead (hours)">
@@ -127,7 +205,9 @@ export default function AdminAvailability() {
             type="number"
             className="w-full bg-white/5 border border-white/15 p-2 rounded"
             value={row.min_lead_hours}
-            onChange={(e) => setRow({ ...row, min_lead_hours: Number(e.target.value) })}
+            onChange={(e) =>
+              setRow({ ...row, min_lead_hours: Number(e.target.value) })
+            }
           />
         </Row>
         <Row label="Window (days)">
@@ -135,28 +215,55 @@ export default function AdminAvailability() {
             type="number"
             className="w-full bg-white/5 border border-white/15 p-2 rounded"
             value={row.booking_window_days}
-            onChange={(e) => setRow({ ...row, booking_window_days: Number(e.target.value) })}
+            onChange={(e) =>
+              setRow({ ...row, booking_window_days: Number(e.target.value) })
+            }
           />
         </Row>
       </div>
 
       {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((d) => (
-        <div key={d} className="rounded-xl bg-black/20 border border-white/10 p-3 mb-2">
+        <div
+          key={d}
+          className="rounded-xl bg-black/20 border border-white/10 p-3 mb-2"
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="capitalize font-semibold">{d}</div>
-            <button className="px-2 py-1 rounded bg-white text-black text-sm" onClick={() => addRange(d)}>Add range</button>
+            <button
+              className="px-2 py-1 rounded bg-white text-black text-sm"
+              onClick={() => addRange(d)}
+            >
+              Add range
+            </button>
           </div>
           <div className="space-y-2">
             {(row.weekly?.[d] || []).map((pair, idx) => (
-              <div key={idx} className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                <input className="bg-white/5 border border-white/15 p-2 rounded"
-                  value={pair[0]} onChange={(e) => updateRange(d, idx, "start", e.target.value)} placeholder="09:00" />
-                <input className="bg-white/5 border border-white/15 p-2 rounded"
-                  value={pair[1]} onChange={(e) => updateRange(d, idx, "end", e.target.value)} placeholder="18:00" />
-                <button className="px-2 py-1 rounded bg-white/10" onClick={() => removeRange(d, idx)}>Delete</button>
+              <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr,1fr,auto] gap-2 items-center">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-white/60">Start</span>
+                  <TimeInput
+                    value={pair[0]}
+                    onChange={(v) => updateRange(d, idx, "start", v)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-white/60">End</span>
+                  <TimeInput
+                    value={pair[1]}
+                    onChange={(v) => updateRange(d, idx, "end", v)}
+                  />
+                </div>
+                <button
+                  className="px-2 py-1 rounded bg-white/10"
+                  onClick={() => removeRange(d, idx)}
+                >
+                  Delete
+                </button>
               </div>
             ))}
-            {!(row.weekly?.[d] || []).length && <div className="text-white/60 text-sm">No hours</div>}
+            {!(row.weekly?.[d] || []).length && (
+              <div className="text-white/60 text-sm">No hours</div>
+            )}
           </div>
         </div>
       ))}
@@ -164,7 +271,11 @@ export default function AdminAvailability() {
       <h4 className="text-md font-semibold">Blackouts</h4>
       <AdminBlackouts />
 
-      <button onClick={save} disabled={saving} className="mt-2 px-4 py-2 rounded-lg bg-white text-black">
+      <button
+        onClick={save}
+        disabled={saving}
+        className="mt-2 px-4 py-2 rounded-lg bg-white text-black"
+      >
         {saving ? "Saving…" : "Save Availability"}
       </button>
     </div>
@@ -175,7 +286,10 @@ function AdminBlackouts() {
   const [rows, setRows] = useState([]);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("mf_blackouts").select("*").order("start_utc", { ascending: true });
+      const { data } = await supabase
+        .from("mf_blackouts")
+        .select("*")
+        .order("start_utc", { ascending: true });
       setRows(data || []);
     })();
   }, []);
@@ -191,26 +305,48 @@ function AdminBlackouts() {
     if (!error) setRows((r) => [...r, data]);
   }
   async function update(id, patch) {
-    const { error } = await supabase.from("mf_blackouts").update(patch).eq("id", id);
+    const { error } = await supabase
+      .from("mf_blackouts")
+      .update(patch)
+      .eq("id", id);
     if (!error) setRows((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }
   async function remove(id) {
-    const { error } = await supabase.from("mf_blackouts").delete().eq("id", id);
+    const { error } = await supabase
+      .from("mf_blackouts")
+      .delete()
+      .eq("id", id);
     if (!error) setRows((r) => r.filter((x) => x.id !== id));
   }
 
   return (
     <div className="rounded-xl bg-black/20 border border-white/10 p-3 space-y-2">
-      <button className="px-3 py-1.5 rounded bg-white text-black" onClick={add}>Add blackout</button>
+      <button className="px-3 py-1.5 rounded bg-white text-black" onClick={add}>
+        Add blackout
+      </button>
       {rows.map((b) => (
         <div key={b.id} className="grid sm:grid-cols-[1fr,1fr,1fr,auto] gap-2">
-          <input className="bg-white/5 border border-white/15 p-2 rounded"
-            value={b.start_utc} onChange={(e) => update(b.id, { start_utc: e.target.value })} />
-          <input className="bg-white/5 border border-white/15 p-2 rounded"
-            value={b.end_utc} onChange={(e) => update(b.id, { end_utc: e.target.value })} />
-          <input className="bg-white/5 border border-white/15 p-2 rounded"
-            value={b.reason || ""} onChange={(e) => update(b.id, { reason: e.target.value })} />
-          <button className="px-2 py-1 rounded bg-white/10" onClick={() => remove(b.id)}>Delete</button>
+          <input
+            className="bg-white/5 border border-white/15 p-2 rounded"
+            value={b.start_utc}
+            onChange={(e) => update(b.id, { start_utc: e.target.value })}
+          />
+          <input
+            className="bg-white/5 border border-white/15 p-2 rounded"
+            value={b.end_utc}
+            onChange={(e) => update(b.id, { end_utc: e.target.value })}
+          />
+          <input
+            className="bg-white/5 border border-white/15 p-2 rounded"
+            value={b.reason || ""}
+            onChange={(e) => update(b.id, { reason: e.target.value })}
+          />
+          <button
+            className="px-2 py-1 rounded bg-white/10"
+            onClick={() => remove(b.id)}
+          >
+            Delete
+          </button>
         </div>
       ))}
       {!rows.length && <div className="text-white/60 text-sm">No blackouts</div>}
