@@ -1,21 +1,61 @@
+# File: netlify.toml
 [build]
-  command = "npm run build"
-  publish = "dist"
+  command   = "npm run build"
+  publish   = "dist"
   functions = "netlify/functions"
 
-# Pin Node and relax npm peer-deps to avoid install failures
 [build.environment]
+  # Pin Node and keep installs happy
   NODE_VERSION = "20.11.1"
-  NPM_FLAGS = "--no-audit --no-fund --legacy-peer-deps"
+  NPM_FLAGS    = "--no-audit --no-fund --legacy-peer-deps"
 
+# Use esbuild for Functions (good with nodemailer and other deps)
+[functions]
+  node_bundler = "esbuild"
+  included_files = [
+    "public/logan-harris.vcf"   # served as a static asset, but listing is harmless
+  ]
+
+# 🔔 Run the "incomplete" sweep every 5 minutes (grace window logic lives in the function)
+[functions."schedule-incomplete"]
+  schedule = "*/5 * * * *"
+
+# Single Page App routing
 [[redirects]]
   from = "/*"
-  to = "/index.html"
+  to   = "/index.html"
   status = 200
 
+# Security headers (global)
 [[headers]]
   for = "/*"
   [headers.values]
-    Referrer-Policy = "strict-origin-when-cross-origin"
+    Referrer-Policy      = "strict-origin-when-cross-origin"
     X-Content-Type-Options = "nosniff"
-    X-Frame-Options = "SAMEORIGIN"
+    X-Frame-Options        = "SAMEORIGIN"
+
+# Long-cache app icons & manifest (safe to cache-bust via ?v=)
+[[headers]]
+  for = "/favicon-*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, immutable"
+
+[[headers]]
+  for = "/android-chrome-*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, immutable"
+
+[[headers]]
+  for = "/apple-touch-icon.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, immutable"
+
+[[headers]]
+  for = "/favicon.ico"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, immutable"
+
+[[headers]]
+  for = "/site.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, immutable"
