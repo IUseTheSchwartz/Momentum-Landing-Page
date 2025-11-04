@@ -8,6 +8,15 @@ function json(body, statusCode = 200) {
   return { statusCode, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
 }
 
+function getIp(headers = {}) {
+  // Netlify puts the client IP here:
+  const nf = headers["x-nf-client-connection-ip"];
+  if (nf) return nf;
+  const xff = headers["x-forwarded-for"];
+  if (xff) return String(xff).split(",")[0].trim();
+  return null;
+}
+
 export async function handler(event) {
   if (event.httpMethod !== "POST") return json({ error: "Method not allowed" }, 405);
 
@@ -22,14 +31,14 @@ export async function handler(event) {
 
   try {
     if (payload.type === "page_view") {
-      // create a new session row
       const row = {
         id: payload.session_id,
         started_at: new Date(payload.started_at).toISOString(),
-        path: payload.path || null,
+        path: payload.path || null,              // still stored, but we won’t chart it
         referrer: payload.referrer || null,
         utm: payload.utm || null,
         user_agent: payload.user_agent || null,
+        ip: getIp(event.headers) || null,        // ← store IP
       };
       const { error } = await supabase.from("mf_analytics_sessions").insert([row]);
       if (error) return json({ error: error.message }, 400);
