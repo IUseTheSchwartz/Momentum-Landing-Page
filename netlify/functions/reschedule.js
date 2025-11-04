@@ -1,8 +1,8 @@
-const { getServiceClient } = require("./_supabase");
-const { sendMail } = require("./_mailer");
-const { clientConfirm, agentApptNotice } = require("./_emailTemplates");
+import { getServiceClient } from "./_supabase.js";
+import { sendMail } from "./_mailer.js";
+import { clientConfirm, agentApptNotice } from "./_emailTemplates.js";
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method Not Allowed" };
   try {
     const supabase = getServiceClient();
@@ -28,7 +28,6 @@ exports.handler = async (event) => {
     const phoneLabel = `618-795-3409`;
     const vcardUrl = `${base}/logan-harris.vcf`;
 
-    // Notify client
     if (lead.email) {
       const c = clientConfirm({
         whenIso: new_start_utc,
@@ -42,7 +41,6 @@ exports.handler = async (event) => {
       await sendMail({ to: lead.email, subject: `Updated: ${c.subject}`, html: c.html, text: c.text });
     }
 
-    // Notify agent/admin
     const a = agentApptNotice({
       lead,
       whenIso: new_start_utc,
@@ -50,12 +48,11 @@ exports.handler = async (event) => {
       durationMin: appt.duration_min || 30,
       adminUrl: `${base}/app/admin?tab=leads&lead=${lead.id}`,
     });
-    const adminRecipients = (process.env.SMTP_TO || "").split(",").map(s => s.trim()).filter(Boolean);
+    const adminRecipients = (process.env.SMTP_TO || "").split(",").map((s) => s.trim()).filter(Boolean);
     if (adminRecipients.length) {
       await sendMail({ to: adminRecipients.join(","), subject: `Rescheduled – ${a.subject}`, html: a.html, text: a.text });
     }
 
-    // Log
     await supabase.from("mf_email_log").insert([{ lead_id: lead.id, type: "rescheduled" }]);
 
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
