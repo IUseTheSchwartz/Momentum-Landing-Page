@@ -1,3 +1,4 @@
+// File: src/pages/Landing.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import { readUTM } from "../lib/utm.js";
@@ -127,7 +128,7 @@ export default function Landing() {
       try { weekly = JSON.parse(weekly); } catch { weekly = {}; }
     }
 
-    // Block booked/rescheduled/scheduled — duration derived from end_utc - start_utc
+    // All taken ranges (use stored end_utc for exact duration)
     const { data: taken } = await supabase
       .from("mf_appointments")
       .select("start_utc, end_utc, status")
@@ -136,9 +137,7 @@ export default function Landing() {
     // Blackouts
     const { data: blackouts } = await supabase.from("mf_blackouts").select("*");
 
-    function overlaps(aStart, aEnd, bStart, bEnd) {
-      return aStart < bEnd && bStart < aEnd;
-    }
+    const overlaps = (aStart, aEnd, bStart, bEnd) => aStart < bEnd && bStart < aEnd;
 
     const nowUtc = new Date();
     const startWindowUtc = new Date(nowUtc.getTime() + minLeadH * 3600 * 1000);
@@ -176,27 +175,26 @@ export default function Landing() {
           const withBufEndUtc = new Date(slotEndUtc.getTime() + buffer * 60000);
 
           if (withBufEndUtc <= rangeEndUtc && slotStartUtc >= startWindowUtc) {
-            const takenHit = (taken || []).some((t) => {
-              const tStart = new Date(t.start_utc);
-              const tEnd = new Date(t.end_utc);
-              return overlaps(slotStartUtc, withBufEndUtc, tStart, tEnd);
-            });
-            const boHit = (blackouts || []).some((b) =>
+            const isTaken = (taken || []).some((t) =>
+              overlaps(slotStartUtc, withBufEndUtc, new Date(t.start_utc), new Date(t.end_utc))
+            );
+            const isBlocked = (blackouts || []).some((b) =>
               overlaps(slotStartUtc, withBufEndUtc, new Date(b.start_utc), new Date(b.end_utc))
             );
-            if (!takenHit && !boHit) {
-              out.push({
-                startUtc: slotStartUtc.toISOString(),
-                endUtc: slotEndUtc.toISOString(),
-                labelLocal: prettyInTz(slotStartUtc.toISOString(), tz),
-                labelTz: `Ends ${new Intl.DateTimeFormat("en-US", {
-                  timeZone: tz,
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                }).format(slotEndUtc)}`,
-              });
-            }
+
+            out.push({
+              startUtc: slotStartUtc.toISOString(),
+              endUtc: slotEndUtc.toISOString(),
+              labelLocal: prettyInTz(slotStartUtc.toISOString(), tz),
+              labelTz: `Ends ${new Intl.DateTimeFormat("en-US", {
+                timeZone: tz,
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              }).format(slotEndUtc)}`,
+              isTaken,
+              isBlocked,
+            });
           }
           slotStartUtc = new Date(slotStartUtc.getTime() + slotMin * 60000);
         }
@@ -372,25 +370,44 @@ export default function Landing() {
               <div className="grid gap-3">
                 <div className="grid gap-2">
                   <label className="text-sm text-white/70">Full Name</label>
-                  <input className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
-                         value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Carter" />
+                  <input
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="John Carter"
+                  />
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm text-white/70">Phone</label>
-                  <input className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
-                         value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555-5555" />
+                  <input
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="(555) 555-5555"
+                  />
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm text-white/70">Email</label>
-                  <input type="email" className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
-                         value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+                  <input
+                    type="email"
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
                 </div>
 
                 <div className="flex items-center justify-end gap-2 mt-2">
-                  <button onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg border border-white/15 text-white/80 hover:bg白/5">
+                  <button
+                    onClick={() => setOpen(false)}
+                    className="px-3 py-2 rounded-lg border border-white/15 text-white/80 hover:bg-white/5"
+                  >
                     Cancel
                   </button>
-                  <button onClick={handleContactNext} className="px-4 py-2 rounded-lg bg-white text-black font-semibold">
+                  <button
+                    onClick={handleContactNext}
+                    className="px-4 py-2 rounded-lg bg-white text-black font-semibold"
+                  >
                     Next
                   </button>
                 </div>
@@ -456,57 +473,66 @@ export default function Landing() {
                   <div className="text-white/70">No slots available. Try different days.</div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-auto">
-                    {slots.map((slt) => (
-                      <button
-                        key={slt.startUtc}
-                        disabled={booking}
-                        onClick={async () => {
-                          try {
-                            setBooking(true);
-                            // Re-read availability to match Admin tz/duration on submit
-                            const { data: av } = await supabase
-                              .from("mf_availability")
-                              .select("*")
-                              .order("updated_at", { ascending: false })
-                              .limit(1)
-                              .maybeSingle();
-                            const tz = av?.tz || "America/Chicago";
-                            const durationMin = av?.slot_minutes ?? 30;
+                    {slots.map((slt) => {
+                      const disabled = slt.isTaken || slt.isBlocked || booking;
+                      return (
+                        <button
+                          key={slt.startUtc}
+                          disabled={disabled}
+                          onClick={async () => {
+                            try {
+                              setBooking(true);
+                              // Re-read availability to match Admin tz/duration on submit
+                              const { data: av } = await supabase
+                                .from("mf_availability")
+                                .select("*")
+                                .order("updated_at", { ascending: false })
+                                .limit(1)
+                                .maybeSingle();
+                              const tz = av?.tz || "America/Chicago";
+                              const durationMin = av?.slot_minutes ?? 30;
 
-                            const res = await fetch("/.netlify/functions/appointment-create", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                lead_id: leadId,
-                                start_utc: slt.startUtc,
-                                duration_min: durationMin, // used for emails + end_utc calc, not stored
-                                tz,
-                              }),
-                            });
-                            if (!res.ok) {
-                              const txt = await res.text().catch(() => "");
-                              let msg = "Could not book. Try another slot.";
-                              try {
-                                const j = JSON.parse(txt);
-                                if (j?.error) msg = j.error;
-                              } catch {}
-                              if (res.status === 409) msg = "That slot was just taken. Pick another.";
-                              throw new Error(msg);
+                              const res = await fetch("/.netlify/functions/appointment-create", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  lead_id: leadId,
+                                  start_utc: slt.startUtc,
+                                  duration_min: durationMin,
+                                  tz,
+                                }),
+                              });
+                              if (!res.ok) {
+                                const txt = await res.text().catch(() => "");
+                                let msg = "Could not book. Try another slot.";
+                                try {
+                                  const j = JSON.parse(txt);
+                                  if (j?.error) msg = j.error;
+                                } catch {}
+                                if (res.status === 409) msg = "That slot was just taken. Pick another.";
+                                throw new Error(msg);
+                              }
+                              alert("Booked! We’ll email the details.");
+                              setOpen(false);
+                            } catch (e) {
+                              alert(e.message || "Could not book. Try another slot.");
+                            } finally {
+                              setBooking(false);
                             }
-                            alert("Booked! We’ll email the details.");
-                            setOpen(false);
-                          } catch (e) {
-                            alert(e.message || "Could not book. Try another slot.");
-                          } finally {
-                            setBooking(false);
-                          }
-                        }}
-                        className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
-                      >
-                        <div className="font-semibold">{slt.labelLocal}</div>
-                        <div className="text-xs text-white/60">{slt.labelTz}</div>
-                      </button>
-                    ))}
+                          }}
+                          className={`rounded-lg border px-3 py-2 text-left ${
+                            slt.isTaken || slt.isBlocked
+                              ? "border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed"
+                              : "border-white/15 bg-white/5 hover:bg-white/10"
+                          }`}
+                        >
+                          <div className="font-semibold">{slt.labelLocal}</div>
+                          <div className="text-xs text-white/60">
+                            {slt.isTaken ? "Booked" : slt.labelTz}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
