@@ -4,10 +4,9 @@ import { supabase } from "../lib/supabaseClient.js";
 import { readUTM } from "../lib/utm.js";
 import ProofFeed from "../components/ProofFeed.jsx";
 import QualifyForm from "../components/QualifyForm.jsx";
-import { buildICS } from "../lib/ics.js";
-import { initAnalytics } from "../lib/analytics.js"; // ← analytics
+import { initAnalytics } from "../lib/analytics.js";
 
-// helper: extract YT ID from various URL formats
+/* ---------------------- YouTube ID helper ---------------------- */
 function extractYouTubeId(url = "") {
   if (!url) return "";
   try {
@@ -23,6 +22,38 @@ function extractYouTubeId(url = "") {
   }
 }
 
+/* -------------------- Timezone math (no libs) ------------------ */
+/** Get offset minutes for a given instant in a specific IANA tz */
+function tzOffsetMinutes(instant, tz) {
+  // Compare the same instant formatted in tz vs UTC
+  const asTz = new Date(instant.toLocaleString("en-US", { timeZone: tz }));
+  const asUtc = new Date(instant.toLocaleString("en-US", { timeZone: "UTC" }));
+  return Math.round((asTz - asUtc) / 60000);
+}
+/** Build a UTC ISO for a Y-M-D + HH:MM that should be interpreted IN tz */
+function zonedDateTimeToUTCISO({ y, m, d, hh, mm, tz }) {
+  // Start from the intended wall-clock time expressed as a UTC date
+  const pseudoUtc = new Date(Date.UTC(y, m - 1, d, hh, mm, 0, 0));
+  const off = tzOffsetMinutes(pseudoUtc, tz);
+  // Subtract the tz offset to get the real UTC instant
+  return new Date(pseudoUtc.getTime() - off * 60000).toISOString();
+}
+/** Format a UTC ISO in a given tz, like 'Tue, Nov 4 · 9:00 AM' */
+function prettyInTz(utcISO, tz = "America/Chicago") {
+  const d = new Date(utcISO);
+  const day = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz }).format(d);
+  const mon = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: tz }).format(d);
+  const date = new Intl.DateTimeFormat("en-US", { day: "numeric", timeZone: tz }).format(d);
+  const time = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: tz,
+  }).format(d);
+  return `${day}, ${mon} ${date} · ${time}`;
+}
+
+/* ---------------------------- Page ----------------------------- */
 export default function Landing() {
   const [settings, setSettings] = useState(null);
   const [proof, setProof] = useState([]);
@@ -30,7 +61,6 @@ export default function Landing() {
 
   // modal/booking state
   const [open, setOpen] = useState(false);
-
   // step state: "contact" -> "qualify" -> "slots"
   const [step, setStep] = useState("contact");
 
@@ -68,7 +98,7 @@ export default function Landing() {
         .order("sort_order", { ascending: true });
       setQuestions(q || []);
 
-      // proof posts (STRICT to your schema + ordering)
+      // proof posts
       const { data: p } = await supabase
         .from("mf_proof_posts")
         .select(
@@ -88,79 +118,121 @@ export default function Landing() {
     return { primary, accent };
   }, [settings]);
 
+  /* ------------------ Slot builder that honors Admin tz ------------------ */
   async function computeSlots() {
+    // Read admin-defined availability
     const { data: av } = await supabase
       .from("mf_availability")
       .select("*")
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const { data: taken } = await supabase
-      .from("mf_appointments")
-      .select("start_utc,end_utc")
-      .eq("status", "scheduled");
-    const { data: blackouts } = await supabase.from("mf_blackouts").select("*");
 
+    const tz = av?.tz || "America/Chicago";
     const slotMin = av?.slot_minutes || 30;
     const buffer = av?.buffer_minutes || 15;
     const minLeadH = av?.min_lead_hours || 12;
     const windowDays = av?.booking_window_days || 14;
     const weekly = av?.weekly || {};
 
-    const now = new Date();
-    const startW = new Date(now.getTime() + minLeadH * 60 * 60 * 1000);
-    const endW = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
+    // Appointments already booked
+    const { data: taken } = await supabase
+      .from("mf_appointments")
+      .select("start_utc, duration_min, status")
+      .in("status", ["booked", "rescheduled"]); // treat both as blocked
+
+    // Blackouts
+    const { data: blackouts } = await supabase.from("mf_blackouts").select("*");
 
     function overlaps(aStart, aEnd, bStart, bEnd) {
       return aStart < bEnd && bStart < aEnd;
     }
 
-    // Approximate local→UTC conversion using current offset
-    function toUtcIso(dateLocal, timeHHMM) {
-      const [hh, mm] = timeHHMM.split(":").map(Number);
-      const d = new Date(dateLocal);
-      d.setHours(hh, mm, 0, 0);
-      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
-    }
+    // Window start/end, measured in admin tz
+    const nowUtc = new Date();
+    const startWindowUtc = new Date(nowUtc.getTime() + minLeadH * 3600 * 1000);
+    const endWindowUtc = new Date(nowUtc.getTime() + windowDays * 24 * 3600 * 1000);
 
+    // Iterate day-by-day in the admin tz
     const out = [];
-    for (let day = new Date(startW); day <= endW; day = new Date(day.getTime() + 86400000)) {
-      const dow = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getDay()];
+    // figure start date (Y-M-D in tz)
+    let cursorUtc = startWindowUtc;
+    while (cursorUtc <= endWindowUtc) {
+      // Convert the current cursor instant to a tz-local date (YMD)
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+        .format(cursorUtc)
+        .split("-");
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const d = parseInt(parts[2], 10);
+
+      const dow = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][
+        new Date(zonedDateTimeToUTCISO({ y, m, d, hh: 12, mm: 0, tz })).getUTCDay()
+      ];
       const ranges = weekly[dow] || [];
+
       for (const [startStr, endStr] of ranges) {
-        let cursor = new Date(toUtcIso(day, startStr));
-        const rangeEnd = new Date(toUtcIso(day, endStr));
-        while (cursor < rangeEnd) {
-          const slotStart = new Date(cursor);
-          const slotEnd = new Date(slotStart.getTime() + slotMin * 60000);
-          const withBufEnd = new Date(slotEnd.getTime() + buffer * 60000);
-          if (withBufEnd <= rangeEnd) {
-            const takenHit = (taken || []).some((t) =>
-              overlaps(slotStart, withBufEnd, new Date(t.start_utc), new Date(t.end_utc))
-            );
+        const [sH, sM] = startStr.split(":").map(Number);
+        const [eH, eM] = endStr.split(":").map(Number);
+
+        // Slot loop inside the range
+        let slotStartUtc = new Date(zonedDateTimeToUTCISO({ y, m, d, hh: sH, mm: sM, tz }));
+        const rangeEndUtc = new Date(zonedDateTimeToUTCISO({ y, m, d, hh: eH, mm: eM, tz }));
+
+        while (slotStartUtc < rangeEndUtc) {
+          const slotEndUtc = new Date(slotStartUtc.getTime() + slotMin * 60000);
+          const withBufEndUtc = new Date(slotEndUtc.getTime() + buffer * 60000);
+
+          // Respect window + buffer inside range
+          if (withBufEndUtc <= rangeEndUtc && slotStartUtc >= startWindowUtc) {
+            const takenHit = (taken || []).some((t) => {
+              const tStart = new Date(t.start_utc);
+              const tEnd = new Date(tStart.getTime() + (t.duration_min || slotMin) * 60000);
+              return overlaps(slotStartUtc, withBufEndUtc, tStart, tEnd);
+            });
             const boHit = (blackouts || []).some((b) =>
-              overlaps(slotStart, withBufEnd, new Date(b.start_utc), new Date(b.end_utc))
+              overlaps(slotStartUtc, withBufEndUtc, new Date(b.start_utc), new Date(b.end_utc))
             );
             if (!takenHit && !boHit) {
               out.push({
-                startUtc: slotStart.toISOString(),
-                endUtc: slotEnd.toISOString(),
-                labelLocal: slotStart.toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }),
-                labelTz: `Ends ${slotEnd.toLocaleTimeString(undefined, { timeStyle: "short" })}`,
+                startUtc: slotStartUtc.toISOString(),
+                endUtc: slotEndUtc.toISOString(),
+                labelLocal: prettyInTz(slotStartUtc.toISOString(), tz), // ex: Tue, Nov 4 · 9:00 AM
+                labelTz: `Ends ${new Intl.DateTimeFormat("en-US", {
+                  timeZone: tz,
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                }).format(slotEndUtc)}`,
               });
             }
           }
-          cursor = new Date(cursor.getTime() + slotMin * 60000);
+          slotStartUtc = new Date(slotStartUtc.getTime() + slotMin * 60000);
         }
       }
+
+      // Advance ~1 day in tz by jumping noon->noon
+      const nextNoonUtcISO = zonedDateTimeToUTCISO({
+        y,
+        m,
+        d: d + 1,
+        hh: 12,
+        mm: 0,
+        tz,
+      });
+      cursorUtc = new Date(nextNoonUtcISO);
     }
+
+    // Reasonable cap
     return out.slice(0, 120);
   }
 
-  // create incomplete lead as soon as contact info is submitted
+  /* -------------------- CONTACT → create lead (no email) -------------------- */
   async function handleContactNext() {
     const name = (fullName || "").trim();
     const em = (email || "").trim();
@@ -172,6 +244,7 @@ export default function Landing() {
     }
 
     const utm = readUTM();
+    const nowIso = new Date().toISOString();
     const { data, error } = await supabase
       .from("mf_leads")
       .insert([
@@ -181,7 +254,9 @@ export default function Landing() {
           phone: ph || null,
           utm,
           is_complete: false,
-          stage: "new", // keep simple; Admin will move to passed/failed/no-show
+          stage: "new",
+          started_at: nowIso,
+          last_activity_at: nowIso, // used by scheduled grace email (no instant email here)
         },
       ])
       .select("id")
@@ -197,30 +272,9 @@ export default function Landing() {
     setLeadId(newId);
     setLeadDraft({ full_name: name || null, email: em || null, phone: ph || null });
     setStep("qualify");
-
-    if (settings?.notify_emails) {
-      try {
-        await fetch("/.netlify/functions/send-email", {
-          method: "POST",
-          body: JSON.stringify({
-            to: settings.notify_emails,
-            subject: `New lead (incomplete) — ${name || em || ph || "Unknown"}`,
-            text: [
-              `A new lead started the application but hasn't finished yet.`,
-              `Name: ${name || "-"}`,
-              `Email: ${em || "-"}`,
-              `Phone: ${ph || "-"}`,
-              ``,
-              `UTM: ${JSON.stringify(utm || {})}`,
-              `Lead ID: ${newId || "-"}`,
-            ].join("\n"),
-          }),
-        });
-      } catch {}
-    }
   }
 
-  // open modal fresh
+  // Open modal fresh
   function openModal() {
     setOpen(true);
     setStep("contact");
@@ -246,7 +300,7 @@ export default function Landing() {
         "--brand-accent": brandVars.accent,
       }}
     >
-      {/* Header (no top-right CTA) */}
+      {/* Header */}
       <header className="mx-auto max-w-6xl px-4 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {settings?.logo_url ? (
@@ -258,7 +312,6 @@ export default function Landing() {
             {settings?.site_name || "Momentum Financial"}
           </span>
         </div>
-        {/* CTA removed */}
         <div />
       </header>
 
@@ -292,7 +345,7 @@ export default function Landing() {
             </div>
           )}
 
-          {/* New single CTA directly under video */}
+          {/* CTA */}
           <div className="mt-4">
             <button
               onClick={openModal}
@@ -337,8 +390,6 @@ export default function Landing() {
             </p>
           </div>
         </section>
-
-        {/* Disclaimer removed */}
       </main>
 
       {/* BOOKING MODAL */}
@@ -429,6 +480,7 @@ export default function Landing() {
                       value: values[q.id] || "",
                     }));
 
+                    const nowIso = new Date().toISOString();
                     const { error: upErr } = await supabase
                       .from("mf_leads")
                       .update({
@@ -437,7 +489,7 @@ export default function Landing() {
                         phone: leadDraft?.phone || phone || null,
                         answers,
                         is_complete: true,
-                        // no stage change here; keep "new" until you evaluate in Admin
+                        last_activity_at: nowIso, // keep activity fresh
                       })
                       .eq("id", leadId);
 
@@ -447,27 +499,6 @@ export default function Landing() {
                       return;
                     }
 
-                    await fetch("/.netlify/functions/send-email", {
-                      method: "POST",
-                      body: JSON.stringify({
-                        to: settings?.notify_emails || "",
-                        subject: `Lead completed — ${leadDraft?.full_name || fullName || "Unknown"}`,
-                        text: [
-                          `Lead completed the questionnaire.`,
-                          `Name: ${leadDraft?.full_name || fullName || "-"}`,
-                          `Email: ${leadDraft?.email || email || "-"}`,
-                          `Phone: ${leadDraft?.phone || phone || "-"}`,
-                          "",
-                          "Answers:",
-                          ...answers.map(
-                            (a) => `- ${a.question || a.question_id}: ${a.value}`
-                          ),
-                          "",
-                          `Lead ID: ${leadId || "-"}`,
-                        ].join("\n"),
-                      }),
-                    });
-
                     setLeadDraft((prev) => ({
                       ...(prev || {}),
                       full_name: prev?.full_name || fullName || null,
@@ -475,6 +506,8 @@ export default function Landing() {
                       phone: prev?.phone || phone || null,
                       answers,
                     }));
+
+                    // Compute slots that respect Admin tz & rules
                     const slotsComputed = await computeSlots();
                     setSlots(slotsComputed);
                     setStep("slots");
@@ -501,81 +534,27 @@ export default function Landing() {
                         key={slt.startUtc}
                         disabled={booking}
                         onClick={async () => {
-                          setBooking(true);
-                          const appt = {
-                            full_name: leadDraft?.full_name || fullName || null,
-                            email: leadDraft?.email || email || null,
-                            phone: leadDraft?.phone || phone || null,
-                            answers: leadDraft?.answers || [],
-                            start_utc: slt.startUtc,
-                            end_utc: slt.endUtc,
-                            timezone: settings?.brand_tz || "America/Chicago",
-                          };
-                          const { error } = await supabase
-                            .from("mf_appointments")
-                            .insert([
-                              {
-                                lead_id: leadId || null,
-                                full_name: appt.full_name,
-                                email: appt.email,
-                                phone: appt.phone,
-                                answers: appt.answers,
-                                start_utc: appt.start_utc,
-                                end_utc: appt.end_utc,
-                                timezone: appt.timezone,
-                                status: "scheduled",
-                              },
-                            ]);
-                          if (error) {
-                            alert("Slot just got taken. Pick another.");
+                          try {
+                            setBooking(true);
+                            // Create appointment via server function (sends emails, dedupes, formats time)
+                            const res = await fetch("/.netlify/functions/appointment-create", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                lead_id: leadId,
+                                start_utc: slt.startUtc,
+                                duration_min: (settings?.slot_minutes || 30),
+                                tz: (settings?.brand_tz || "America/Chicago"),
+                              }),
+                            });
+                            if (!res.ok) throw new Error("Slot just got taken. Pick another.");
+                            alert("Booked! We’ll email the details.");
+                            setOpen(false);
+                          } catch (e) {
+                            alert(e.message || "Could not book. Try another slot.");
+                          } finally {
                             setBooking(false);
-                            return;
                           }
-
-                          // Do not auto-change lead stage to "booked" — Admin will manage stages
-                          // await supabase.from("mf_leads").update({ stage: "booked" }).eq("id", leadId);
-
-                          await fetch("/.netlify/functions/send-email", {
-                            method: "POST",
-                            body: JSON.stringify({
-                              to: settings?.notify_emails || "",
-                              subject: `New appointment — ${
-                                appt.full_name || "Unknown"
-                              } — ${slt.startUtc}`,
-                              text: [
-                                `New Appointment`,
-                                `Name: ${appt.full_name || "-"}`,
-                                `Email: ${appt.email || "-"}`,
-                                `Phone: ${appt.phone || "-"}`,
-                                `When (UTC): ${appt.start_utc} → ${appt.end_utc}`,
-                                `Organizer TZ: ${settings?.brand_tz || "America/Chicago"}`,
-                                "",
-                                "Answers:",
-                                ...(appt.answers || []).map(
-                                  (a) => `- ${a.question || a.question_id}: ${a.value}`
-                                ),
-                                `Lead ID: ${leadId || "-"}`,
-                              ].join("\n"),
-                            }),
-                          });
-
-                          const ics = buildICS({
-                            title: "Momentum Financial — Intro Call",
-                            description: "Intro call with Momentum Financial",
-                            startUtcISO: appt.start_utc,
-                            endUtcISO: appt.end_utc,
-                            location: "Google Meet / Phone",
-                          });
-                          const url = URL.createObjectURL(ics);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = "momentum-booking.ics";
-                          a.click();
-                          URL.revokeObjectURL(url);
-
-                          alert("Booked! We’ll email the details.");
-                          setOpen(false);
-                          setBooking(false);
                         }}
                         className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
                       >
