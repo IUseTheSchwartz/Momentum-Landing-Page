@@ -28,10 +28,11 @@ export const handler = async (event) => {
     const phoneLabel = `618-795-3409`;
     const vcardUrl = `${base}/logan-harris.vcf`;
 
+    // Client email (NO answers)
     if (lead.email) {
       const c = clientConfirm({
         whenIso: new_start_utc,
-        tz: appt.tz || "America/Chicago",
+        tz: appt.tz || appt.timezone || "America/Chicago",
         durationMin: appt.duration_min || 30,
         rescheduleUrl,
         phoneHref,
@@ -41,10 +42,11 @@ export const handler = async (event) => {
       await sendMail({ to: lead.email, subject: `Updated: ${c.subject}`, html: c.html, text: c.text });
     }
 
+    // Agent/admin email (INCLUDES answers)
     const a = agentApptNotice({
-      lead,
+      lead, // includes answers
       whenIso: new_start_utc,
-      tz: appt.tz || "America/Chicago",
+      tz: appt.tz || appt.timezone || "America/Chicago",
       durationMin: appt.duration_min || 30,
       adminUrl: `${base}/app/admin?tab=leads&lead=${lead.id}`,
     });
