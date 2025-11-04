@@ -23,22 +23,16 @@ function extractYouTubeId(url = "") {
 }
 
 /* -------------------- Timezone math (no libs) ------------------ */
-/** Get offset minutes for a given instant in a specific IANA tz */
 function tzOffsetMinutes(instant, tz) {
-  // Compare the same instant formatted in tz vs UTC
   const asTz = new Date(instant.toLocaleString("en-US", { timeZone: tz }));
   const asUtc = new Date(instant.toLocaleString("en-US", { timeZone: "UTC" }));
   return Math.round((asTz - asUtc) / 60000);
 }
-/** Build a UTC ISO for a Y-M-D + HH:MM that should be interpreted IN tz */
 function zonedDateTimeToUTCISO({ y, m, d, hh, mm, tz }) {
-  // Start from the intended wall-clock time expressed as a UTC date
   const pseudoUtc = new Date(Date.UTC(y, m - 1, d, hh, mm, 0, 0));
   const off = tzOffsetMinutes(pseudoUtc, tz);
-  // Subtract the tz offset to get the real UTC instant
   return new Date(pseudoUtc.getTime() - off * 60000).toISOString();
 }
-/** Format a UTC ISO in a given tz, like 'Tue, Nov 4 · 9:00 AM' */
 function prettyInTz(utcISO, tz = "America/Chicago") {
   const d = new Date(utcISO);
   const day = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz }).format(d);
@@ -77,11 +71,9 @@ export default function Landing() {
   const [phone, setPhone] = useState("");
 
   useEffect(() => {
-    // lightweight visit + time-on-page tracking
     initAnalytics();
 
     (async () => {
-      // site settings
       const { data: s } = await supabase
         .from("mf_site_settings")
         .select("*")
@@ -90,7 +82,6 @@ export default function Landing() {
         .maybeSingle();
       setSettings(s || {});
 
-      // qualify questions
       const { data: q } = await supabase
         .from("mf_questions")
         .select("*")
@@ -98,7 +89,6 @@ export default function Landing() {
         .order("sort_order", { ascending: true });
       setQuestions(q || []);
 
-      // proof posts
       const { data: p } = await supabase
         .from("mf_proof_posts")
         .select(
@@ -118,9 +108,8 @@ export default function Landing() {
     return { primary, accent };
   }, [settings]);
 
-  /* ------------------ Slot builder that honors Admin tz ------------------ */
+  /* -------- Slots that honor Admin tz + parse weekly JSON string -------- */
   async function computeSlots() {
-    // Read admin-defined availability
     const { data: av } = await supabase
       .from("mf_availability")
       .select("*")
@@ -129,17 +118,21 @@ export default function Landing() {
       .maybeSingle();
 
     const tz = av?.tz || "America/Chicago";
-    const slotMin = av?.slot_minutes || 30;
-    const buffer = av?.buffer_minutes || 15;
-    const minLeadH = av?.min_lead_hours || 12;
-    const windowDays = av?.booking_window_days || 14;
-    const weekly = av?.weekly || {};
+    const slotMin = av?.slot_minutes ?? 30;
+    const buffer = av?.buffer_minutes ?? 15;
+    const minLeadH = av?.min_lead_hours ?? 12;
+    const windowDays = av?.booking_window_days ?? 14;
 
-    // Appointments already booked
+    let weekly = av?.weekly || {};
+    if (typeof weekly === "string") {
+      try { weekly = JSON.parse(weekly); } catch { weekly = {}; }
+    }
+
+    // Appointments already booked (block "booked", "rescheduled", and legacy "scheduled")
     const { data: taken } = await supabase
       .from("mf_appointments")
       .select("start_utc, duration_min, status")
-      .in("status", ["booked", "rescheduled"]); // treat both as blocked
+      .in("status", ["booked", "rescheduled", "scheduled"]);
 
     // Blackouts
     const { data: blackouts } = await supabase.from("mf_blackouts").select("*");
@@ -148,17 +141,13 @@ export default function Landing() {
       return aStart < bEnd && bStart < aEnd;
     }
 
-    // Window start/end, measured in admin tz
     const nowUtc = new Date();
     const startWindowUtc = new Date(nowUtc.getTime() + minLeadH * 3600 * 1000);
     const endWindowUtc = new Date(nowUtc.getTime() + windowDays * 24 * 3600 * 1000);
 
-    // Iterate day-by-day in the admin tz
     const out = [];
-    // figure start date (Y-M-D in tz)
     let cursorUtc = startWindowUtc;
     while (cursorUtc <= endWindowUtc) {
-      // Convert the current cursor instant to a tz-local date (YMD)
       const parts = new Intl.DateTimeFormat("en-CA", {
         timeZone: tz,
         year: "numeric",
@@ -180,7 +169,6 @@ export default function Landing() {
         const [sH, sM] = startStr.split(":").map(Number);
         const [eH, eM] = endStr.split(":").map(Number);
 
-        // Slot loop inside the range
         let slotStartUtc = new Date(zonedDateTimeToUTCISO({ y, m, d, hh: sH, mm: sM, tz }));
         const rangeEndUtc = new Date(zonedDateTimeToUTCISO({ y, m, d, hh: eH, mm: eM, tz }));
 
@@ -188,11 +176,11 @@ export default function Landing() {
           const slotEndUtc = new Date(slotStartUtc.getTime() + slotMin * 60000);
           const withBufEndUtc = new Date(slotEndUtc.getTime() + buffer * 60000);
 
-          // Respect window + buffer inside range
           if (withBufEndUtc <= rangeEndUtc && slotStartUtc >= startWindowUtc) {
             const takenHit = (taken || []).some((t) => {
               const tStart = new Date(t.start_utc);
-              const tEnd = new Date(tStart.getTime() + (t.duration_min || slotMin) * 60000);
+              const dur = t.duration_min ?? slotMin;
+              const tEnd = new Date(tStart.getTime() + dur * 60000);
               return overlaps(slotStartUtc, withBufEndUtc, tStart, tEnd);
             });
             const boHit = (blackouts || []).some((b) =>
@@ -202,7 +190,7 @@ export default function Landing() {
               out.push({
                 startUtc: slotStartUtc.toISOString(),
                 endUtc: slotEndUtc.toISOString(),
-                labelLocal: prettyInTz(slotStartUtc.toISOString(), tz), // ex: Tue, Nov 4 · 9:00 AM
+                labelLocal: prettyInTz(slotStartUtc.toISOString(), tz),
                 labelTz: `Ends ${new Intl.DateTimeFormat("en-US", {
                   timeZone: tz,
                   hour: "numeric",
@@ -216,19 +204,11 @@ export default function Landing() {
         }
       }
 
-      // Advance ~1 day in tz by jumping noon->noon
-      const nextNoonUtcISO = zonedDateTimeToUTCISO({
-        y,
-        m,
-        d: d + 1,
-        hh: 12,
-        mm: 0,
-        tz,
-      });
+      // Move to next day (noon in tz)
+      const nextNoonUtcISO = zonedDateTimeToUTCISO({ y, m, d: d + 1, hh: 12, mm: 0, tz });
       cursorUtc = new Date(nextNoonUtcISO);
     }
 
-    // Reasonable cap
     return out.slice(0, 120);
   }
 
@@ -256,7 +236,8 @@ export default function Landing() {
           is_complete: false,
           stage: "new",
           started_at: nowIso,
-          last_activity_at: nowIso, // used by scheduled grace email (no instant email here)
+          last_activity_at: nowIso, // scheduler uses this with your grace window
+          incomplete_notified: false,
         },
       ])
       .select("id")
@@ -268,8 +249,7 @@ export default function Landing() {
       return;
     }
 
-    const newId = data?.id;
-    setLeadId(newId);
+    setLeadId(data.id);
     setLeadDraft({ full_name: name || null, email: em || null, phone: ph || null });
     setStep("qualify");
   }
@@ -295,10 +275,7 @@ export default function Landing() {
   return (
     <div
       className="min-h-screen bg-[#1e1f22] text-white"
-      style={{
-        "--brand-primary": brandVars.primary,
-        "--brand-accent": brandVars.accent,
-      }}
+      style={{ "--brand-primary": brandVars.primary, "--brand-accent": brandVars.accent }}
     >
       {/* Header */}
       <header className="mx-auto max-w-6xl px-4 py-6 flex items-center justify-between">
@@ -308,9 +285,7 @@ export default function Landing() {
           ) : (
             <div className="h-9 w-32 bg-white/10 rounded" />
           )}
-          <span className="text-white/60">
-            {settings?.site_name || "Momentum Financial"}
-          </span>
+          <span className="text-white/60">{settings?.site_name || "Momentum Financial"}</span>
         </div>
         <div />
       </header>
@@ -334,9 +309,7 @@ export default function Landing() {
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <div className="aspect-video w-full rounded-xl bg-black/30 border border-white/10 grid place-items-center">
                 <div className="text-center">
-                  <div className="text-sm uppercase tracking-wide text-white/50">
-                    Video Coming Soon
-                  </div>
+                  <div className="text-sm uppercase tracking-wide text-white/50">Video Coming Soon</div>
                   <div className="mt-2 text-white/70 text-xs">
                     Add <code>hero_youtube_url</code> in <em>mf_site_settings</em>
                   </div>
@@ -373,21 +346,13 @@ export default function Landing() {
         {/* ABOUT */}
         <section className="mt-16 grid gap-6 sm:grid-cols-[160px,1fr] items-start">
           {settings?.headshot_url ? (
-            <img
-              src={settings.headshot_url}
-              alt="headshot"
-              className="h-40 w-40 rounded-2xl object-cover"
-            />
+            <img src={settings.headshot_url} alt="headshot" className="h-40 w-40 rounded-2xl object-cover" />
           ) : (
             <div className="h-40 w-40 rounded-2xl bg-white/10" />
           )}
           <div>
-            <h2 className="text-xl font-bold">
-              About {settings?.about_name || "Your Mentor"}
-            </h2>
-            <p className="text-white/80 mt-2">
-              {settings?.about_bio || "Upload headshot and edit this in Admin."}
-            </p>
+            <h2 className="text-xl font-bold">About {settings?.about_name || "Your Mentor"}</h2>
+            <p className="text-white/80 mt-2">{settings?.about_bio || "Upload headshot and edit this in Admin."}</p>
           </div>
         </section>
       </main>
@@ -399,15 +364,9 @@ export default function Landing() {
             {/* HEADER */}
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold">
-                {step === "contact"
-                  ? "Start your application"
-                  : step === "qualify"
-                  ? "Answer a few questions"
-                  : "Pick a time"}
+                {step === "contact" ? "Start your application" : step === "qualify" ? "Answer a few questions" : "Pick a time"}
               </h3>
-              <button onClick={() => setOpen(false)} className="text-white/60 hover:text-white">
-                ✕
-              </button>
+              <button onClick={() => setOpen(false)} className="text-white/60 hover:text-white">✕</button>
             </div>
 
             {/* STEP: CONTACT */}
@@ -415,44 +374,25 @@ export default function Landing() {
               <div className="grid gap-3">
                 <div className="grid gap-2">
                   <label className="text-sm text-white/70">Full Name</label>
-                  <input
-                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Carter"
-                  />
+                  <input className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                         value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Carter" />
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm text-white/70">Phone</label>
-                  <input
-                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(555) 555-5555"
-                  />
+                  <input className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                         value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555-5555" />
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm text-white/70">Email</label>
-                  <input
-                    type="email"
-                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                  />
+                  <input type="email" className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
+                         value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
                 </div>
 
                 <div className="flex items-center justify-end gap-2 mt-2">
-                  <button
-                    onClick={() => setOpen(false)}
-                    className="px-3 py-2 rounded-lg border border-white/15 text-white/80 hover:bg-white/5"
-                  >
+                  <button onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg border border-white/15 text-white/80 hover:bg-white/5">
                     Cancel
                   </button>
-                  <button
-                    onClick={handleContactNext}
-                    className="px-4 py-2 rounded-lg bg-white text-black font-semibold"
-                  >
+                  <button onClick={handleContactNext} className="px-4 py-2 rounded-lg bg-white text-black font-semibold">
                     Next
                   </button>
                 </div>
@@ -465,12 +405,7 @@ export default function Landing() {
             {/* STEP: QUALIFY */}
             {step === "qualify" && (
               <div>
-                <button
-                  onClick={() => setStep("contact")}
-                  className="text-white/60 hover:text-white mb-3"
-                >
-                  ← Back
-                </button>
+                <button onClick={() => setStep("contact")} className="text-white/60 hover:text-white mb-3">← Back</button>
                 <QualifyForm
                   questions={questions}
                   onSubmit={async (values) => {
@@ -489,7 +424,7 @@ export default function Landing() {
                         phone: leadDraft?.phone || phone || null,
                         answers,
                         is_complete: true,
-                        last_activity_at: nowIso, // keep activity fresh
+                        last_activity_at: nowIso,
                       })
                       .eq("id", leadId);
 
@@ -507,7 +442,6 @@ export default function Landing() {
                       answers,
                     }));
 
-                    // Compute slots that respect Admin tz & rules
                     const slotsComputed = await computeSlots();
                     setSlots(slotsComputed);
                     setStep("slots");
@@ -519,12 +453,7 @@ export default function Landing() {
             {/* STEP: SLOTS */}
             {step === "slots" && (
               <div>
-                <button
-                  onClick={() => setStep("qualify")}
-                  className="text-white/60 hover:text-white mb-3"
-                >
-                  ← Back
-                </button>
+                <button onClick={() => setStep("qualify")} className="text-white/60 hover:text-white mb-3">← Back</button>
                 {!slots.length ? (
                   <div className="text-white/70">No slots available. Try different days.</div>
                 ) : (
@@ -536,15 +465,24 @@ export default function Landing() {
                         onClick={async () => {
                           try {
                             setBooking(true);
-                            // Create appointment via server function (sends emails, dedupes, formats time)
+                            // Pull availability again to ensure duration/tz match Admin precisely
+                            const { data: av } = await supabase
+                              .from("mf_availability")
+                              .select("*")
+                              .order("updated_at", { ascending: false })
+                              .limit(1)
+                              .maybeSingle();
+                            const tz = av?.tz || "America/Chicago";
+                            const durationMin = av?.slot_minutes ?? 30;
+
                             const res = await fetch("/.netlify/functions/appointment-create", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 lead_id: leadId,
                                 start_utc: slt.startUtc,
-                                duration_min: (settings?.slot_minutes || 30),
-                                tz: (settings?.brand_tz || "America/Chicago"),
+                                duration_min: durationMin,
+                                tz,
                               }),
                             });
                             if (!res.ok) throw new Error("Slot just got taken. Pick another.");
