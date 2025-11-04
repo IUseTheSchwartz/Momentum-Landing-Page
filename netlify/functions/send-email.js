@@ -1,13 +1,12 @@
-// SMTP email via Mailjet (or any SMTP) using nodemailer
-const nodemailer = require("nodemailer");
+import nodemailer from "nodemailer";
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") {
       return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    const payload = JSON.parse(event.body || "{}"); // { subject, text, html?, to?, replyTo?, to? }
+    const payload = JSON.parse(event.body || "{}"); // { subject, text, html?, to?, replyTo? }
 
     const toList = (payload.to || process.env.SMTP_TO || "")
       .split(",")
@@ -20,9 +19,8 @@ exports.handler = async (event) => {
     const fromEmail = process.env.SMTP_FROM || user;
     const fromName = process.env.SMTP_FROM_NAME || "Momentum Financial";
     const port = Number(process.env.SMTP_PORT || 587);
-    const secure = port === 465; // true for 465, false for 587/25
+    const secure = port === 465;
 
-    // Soft no-op if not configured
     if (!host || !user || !pass || toList.length === 0) {
       console.log("[send-email] Skipping (missing SMTP env or recipients)", {
         hasHost: !!host,
@@ -33,34 +31,20 @@ exports.handler = async (event) => {
       return { statusCode: 200, body: "ok (email skipped)" };
     }
 
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass },
-    });
-
-    // Compose "From" with a friendly name
+    const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
     const fromHeader = `"${fromName.replace(/"/g, "'")}" <${fromEmail}>`;
 
     await transporter.sendMail({
       from: fromHeader,
       to: toList,
       subject: payload.subject || "Notification",
-      // If caller didn't provide text, derive it from HTML (better for deliverability)
       text: payload.text || (payload.html ? stripHtml(payload.html) : ""),
-      html: payload.html || undefined, // keep optional; text-only is fine
-      replyTo: payload.replyTo || fromEmail, // so replies go somewhere useful
-
-      // 🔽 Deliverability helpers (good for warmup on a new domain)
+      html: payload.html || undefined,
+      replyTo: payload.replyTo || fromEmail,
       headers: {
-        // Disable tracking for warmup so links aren't rewritten
         "X-MJ-TrackOpen": "0",
         "X-MJ-TrackClick": "0",
-
-        // Gmail-friendly unsubscribe (replace with your real mailbox/URL)
-        "List-Unsubscribe":
-          `<mailto:support@logantharris.com>, <https://logantharris.com/unsubscribe>`,
+        "List-Unsubscribe": `<mailto:support@logantharris.com>, <https://logantharris.com/unsubscribe>`,
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       },
     });
@@ -68,12 +52,10 @@ exports.handler = async (event) => {
     return { statusCode: 200, body: "ok" };
   } catch (e) {
     console.error(e);
-    // Keep non-fatal to avoid breaking UX; logs will show the error
     return { statusCode: 200, body: "ok (email skipped due to error)" };
   }
 };
 
-// Minimal HTML→text fallback for inboxing
 function stripHtml(html = "") {
   return html
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
