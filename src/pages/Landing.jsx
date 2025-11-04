@@ -127,10 +127,10 @@ export default function Landing() {
       try { weekly = JSON.parse(weekly); } catch { weekly = {}; }
     }
 
-    // Appointments already booked (block "booked", "rescheduled", and legacy "scheduled")
+    // Block booked/rescheduled/scheduled — duration derived from end_utc - start_utc
     const { data: taken } = await supabase
       .from("mf_appointments")
-      .select("start_utc, duration_min, status")
+      .select("start_utc, end_utc, status")
       .in("status", ["booked", "rescheduled", "scheduled"]);
 
     // Blackouts
@@ -178,8 +178,7 @@ export default function Landing() {
           if (withBufEndUtc <= rangeEndUtc && slotStartUtc >= startWindowUtc) {
             const takenHit = (taken || []).some((t) => {
               const tStart = new Date(t.start_utc);
-              const dur = t.duration_min ?? slotMin;
-              const tEnd = new Date(tStart.getTime() + dur * 60000);
+              const tEnd = new Date(t.end_utc);
               return overlaps(slotStartUtc, withBufEndUtc, tStart, tEnd);
             });
             const boHit = (blackouts || []).some((b) =>
@@ -235,7 +234,7 @@ export default function Landing() {
           is_complete: false,
           stage: "new",
           started_at: nowIso,
-          last_activity_at: nowIso, // scheduler uses this with your grace window
+          last_activity_at: nowIso,
           incomplete_notified: false,
         },
       ])
@@ -388,7 +387,7 @@ export default function Landing() {
                 </div>
 
                 <div className="flex items-center justify-end gap-2 mt-2">
-                  <button onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg border border-white/15 text-white/80 hover:bg-white/5">
+                  <button onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg border border-white/15 text-white/80 hover:bg白/5">
                     Cancel
                   </button>
                   <button onClick={handleContactNext} className="px-4 py-2 rounded-lg bg-white text-black font-semibold">
@@ -464,7 +463,7 @@ export default function Landing() {
                         onClick={async () => {
                           try {
                             setBooking(true);
-                            // Pull availability again to ensure duration/tz match Admin precisely
+                            // Re-read availability to match Admin tz/duration on submit
                             const { data: av } = await supabase
                               .from("mf_availability")
                               .select("*")
@@ -480,7 +479,7 @@ export default function Landing() {
                               body: JSON.stringify({
                                 lead_id: leadId,
                                 start_utc: slt.startUtc,
-                                duration_min: durationMin,
+                                duration_min: durationMin, // used for emails + end_utc calc, not stored
                                 tz,
                               }),
                             });
