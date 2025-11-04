@@ -1,16 +1,19 @@
+// File: src/App.jsx
 import React, { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import Landing from "./pages/Landing.jsx";
+import Reschedule from "./pages/Reschedule.jsx";
 import Admin from "./pages/Admin.jsx";
 import AdminLogin from "./pages/AdminLogin.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 
-export default function App() {
-  const isAdminRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
+/** Gate that protects /admin using your existing Supabase session logic */
+function AdminGate() {
   const [session, setSession] = useState(null);
-  const [checking, setChecking] = useState(isAdminRoute); // only check when on /admin
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!isAdminRoute) return;
     (async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data.session || null);
@@ -18,10 +21,26 @@ export default function App() {
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => sub.subscription?.unsubscribe();
-  }, [isAdminRoute]);
+  }, []);
 
-  if (!isAdminRoute) return <Landing />;
-
-  if (checking) return null; // brief flash blocker
+  if (checking) return null; // prevents brief flash
   return session ? <Admin /> : <AdminLogin />;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/reschedule" element={<Reschedule />} />
+
+        {/* Admin (auth required) */}
+        <Route path="/admin" element={<AdminGate />} />
+
+        {/* Optional: redirect any unknown path back home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
