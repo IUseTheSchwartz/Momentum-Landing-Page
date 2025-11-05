@@ -6,7 +6,15 @@ import ProofFeed from "../components/ProofFeed.jsx";
 import QualifyForm from "../components/QualifyForm.jsx";
 import { initAnalytics } from "../lib/analytics.js";
 
-/* ---------------------- Minimal Creator Bar (icon + label pills) ---------------------- */
+/* --------------------------- tiny skeleton helpers --------------------------- */
+function Skeleton({ className = "" }) {
+  return <div className={`animate-pulse rounded-md bg-white/10 ${className}`} />;
+}
+function Line({ w = "100%", h = "14px" }) {
+  return <Skeleton className={`h-[${h}]`} style={{ width: w }} />;
+}
+
+/* ---------------------- Minimal Creator Bar (with fix) ---------------------- */
 function CreatorBar({ settings }) {
   const name   = settings?.about_name || "Logan Harris";
   const avatar = settings?.headshot_url || null;
@@ -23,19 +31,17 @@ function CreatorBar({ settings }) {
         </svg>
       )
     },
-igUrl && {
-  key: "ig",
-  label: "Instagram",
-  href: igUrl,
-  Icon: () => (
-    <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M8 0C5.79 0 5.491.01 4.659.048c-.832.038-1.402.177-1.9.378-.514.207-.95.484-1.385.919-.435.435-.712.871-.919 1.385-.201.498-.34 1.068-.378 1.9C0 5.491.01 5.79.048 6.622.086 7.454.225 8.024.426 8.522c.207.514.484.95.919 1.385.435.435.871.712 1.385.919.498.201 1.068.34 1.9.378.832.038 1.131.048 2.963.048s2.131-.01 2.963-.048c.832-.038 1.402-.177 1.9-.378a4.02 4.02 0 0 0 1.385-.919 4.02 4.02 0 0 0 .919-1.385c.201-.498.34-1.068.378-1.9.038-.832.048-1.131.048-2.963s-.01-2.131-.048-2.963c-.038-.832-.177-1.402-.378-1.9a4.02 4.02 0 0 0-.919-1.385A4.02 4.02 0 0 0 13.3.426c-.498-.201-1.068-.34-1.9-.378C10.568.01 10.269 0 8 0Zm0 1.454c2.2 0 2.469.008 3.341.048.806.037 1.243.172 1.535.287.387.15.663.33.954.621.291.291.471.567.621.954.115.292.25.729.287 1.535.04.872.048 1.141.048 3.341s-.008 2.469-.048 3.341c-.037.806-.172 1.243-.287 1.535a2.57 2.57 0 0 1-.621.954 2.57 2.57 0 0 1-.954.621c-.292.115-.729.25-1.535.287-.872.04-1.141.048-3.341.048s-2.469-.008-3.341-.048c-.806-.037-1.243-.172-1.535-.287a2.57 2.57 0 0 1-.954-.621 2.57 2.57 0 0 1-.621-.954c-.115-.292-.25-.729-.287-1.535-.04-.872-.048-1.141-.048-3.341s.008-2.469.048-3.341c.037-.806.172-1.243.287-1.535.15-.387.33-.663.621-.954.291-.291.567-.471.954-.621.292-.115.729-.25 1.535-.287.872-.04 1.141-.048 3.341-.048Zm0 2.486a4.06 4.06 0 1 0 0 8.12 4.06 4.06 0 0 0 0-8.12Zm0 6.706a2.646 2.646 0 1 1 0-5.292 2.646 2.646 0 0 1 0 5.292Zm4.943-6.937a.95.95 0 1 1-1.9 0 .95.95 0 0 1 1.9 0Z"
-      />
-    </svg>
-  ),
-},
+    igUrl && {
+      key: "ig", label: "Instagram", href: igUrl, Icon: () => (
+        /* reliable IG glyph */
+        <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M8 0C5.79 0 5.491.01 4.659.048c-.832.038-1.402.177-1.9.378-.514.207-.95.484-1.385.919-.435.435-.712.871-.919 1.385-.201.498-.34 1.068-.378 1.9C0 5.491.01 5.79.048 6.622.086 7.454.225 8.024.426 8.522c.207.514.484.95.919 1.385.435.435.871.712 1.385.919.498.201 1.068.34 1.9.378.832.038 1.131.048 2.963.048s2.131-.01 2.963-.048c.832-.038 1.402-.177 1.9-.378a4.02 4.02 0 0 0 1.385-.919 4.02 4.02 0 0 0 .919-1.385c.201-.498.34-1.068.378-1.9.038-.832.048-1.131.048-2.963s-.01-2.131-.048-2.963c-.038-.832-.177-1.402-.378-1.9a4.02 4.02 0 0 0-.919-1.385A4.02 4.02 0 0 0 13.3.426c-.498-.201-1.068-.34-1.9-.378C10.568.01 10.269 0 8 0Zm0 1.454c2.2 0 2.469.008 3.341.048.806.037 1.243.172 1.535.287.387.15.663.33.954.621.291.291.471.567.621.954.115.292.25.729.287 1.535.04.872.048 1.141.048 3.341s-.008 2.469-.048 3.341c-.037.806-.172 1.243-.287 1.535a2.57 2.57 0 0 1-.621.954 2.57 2.57 0 0 1-.954.621c-.292.115-.729.25-1.535.287-.872.04-1.141.048-3.341.048s-2.469-.008-3.341-.048c-.806-.037-1.243-.172-1.535-.287a2.57 2.57 0 0 1-.954-.621 2.57 2.57 0 0 1-.621-.954c-.115-.292-.25-.729-.287-1.535-.04-.872-.048-1.141-.048-3.341s.008-2.469.048-3.341c.037-.806.172-1.243.287-1.535.15-.387.33-.663.621-.954.291-.291.567-.471.954-.621.292-.115.729-.25 1.535-.287.872-.04 1.141-.048 3.341-.048Zm0 2.486a4.06 4.06 0 1 0 0 8.12 4.06 4.06 0 0 0 0-8.12Zm0 6.706a2.646 2.646 0 1 1 0-5.292 2.646 2.646 0 0 1 0 5.292Zm4.943-6.937a.95.95 0 1 1-1.9 0 .95.95 0 0 1 1.9 0Z"
+          />
+        </svg>
+      )
+    },
     scUrl && {
       key: "sc", label: "Snapchat", href: scUrl, Icon: () => (
         <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -50,7 +56,6 @@ igUrl && {
   return (
     <section className="mt-5">
       <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-        {/* On small screens stack; on >=sm keep in one row */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* avatar + name */}
           <div className="flex items-center gap-3">
@@ -67,7 +72,7 @@ igUrl && {
             </div>
           </div>
 
-          {/* social buttons — responsive grid on mobile, inline on desktop */}
+          {/* social buttons — responsive, never overlap */}
           <div className="sm:ml-auto">
             <div className="grid grid-cols-2 gap-2 max-[380px]:grid-cols-1 sm:flex sm:flex-row sm:items-center">
               {items.map(({ key, label, href, Icon }) => (
@@ -140,14 +145,16 @@ export default function Landing() {
   const [proof, setProof] = useState([]);
   const [questions, setQuestions] = useState([]);
 
+  // loading gate to avoid flicker
+  const [loading, setLoading] = useState(true);
+
   // modal/booking state
   const [open, setOpen] = useState(false);
-  // step state: "contact" -> "qualify" -> "slots"
   const [step, setStep] = useState("contact");
 
   // lead state
   const [leadId, setLeadId] = useState(null);
-  const [leadDraft, setLeadDraft] = useState(null); // {full_name,email,phone,answers?}
+  const [leadDraft, setLeadDraft] = useState(null);
 
   const [slots, setSlots] = useState([]);
   const [booking, setBooking] = useState(false);
@@ -161,31 +168,25 @@ export default function Landing() {
     initAnalytics();
 
     (async () => {
-      const { data: s } = await supabase
-        .from("mf_site_settings")
-        .select("*")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setSettings(s || {});
+      // fetch in parallel so it feels instant
+      const [sRes, qRes, pRes] = await Promise.all([
+        supabase.from("mf_site_settings").select("*").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("mf_questions").select("*").eq("is_active", true).order("sort_order", { ascending: true }),
+        supabase
+          .from("mf_proof_posts")
+          .select(
+            "id, display_name, avatar_url, message_text, amount_cents, currency, happened_at, screenshot_url, created_at, is_pinned, is_published"
+          )
+          .eq("is_published", true)
+          .order("is_pinned", { ascending: false })
+          .order("happened_at", { ascending: false })
+          .order("created_at", { ascending: false }),
+      ]);
 
-      const { data: q } = await supabase
-        .from("mf_questions")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
-      setQuestions(q || []);
-
-      const { data: p } = await supabase
-        .from("mf_proof_posts")
-        .select(
-          "id, display_name, avatar_url, message_text, amount_cents, currency, happened_at, screenshot_url, created_at, is_pinned, is_published"
-        )
-        .eq("is_published", true)
-        .order("is_pinned", { ascending: false })
-        .order("happened_at", { ascending: false })
-        .order("created_at", { ascending: false });
-      setProof(p || []);
+      setSettings(sRes?.data || {});
+      setQuestions(qRes?.data || []);
+      setProof(pRes?.data || []);
+      setLoading(false); // only now reveal real content
     })();
   }, []);
 
@@ -215,13 +216,11 @@ export default function Landing() {
       try { weekly = JSON.parse(weekly); } catch { weekly = {}; }
     }
 
-    // All taken ranges (use stored end_utc for exact duration)
     const { data: taken } = await supabase
       .from("mf_appointments")
       .select("start_utc, end_utc, status")
       .in("status", ["booked", "rescheduled", "scheduled"]);
 
-    // Blackouts
     const { data: blackouts } = await supabase.from("mf_blackouts").select("*");
 
     const overlaps = (aStart, aEnd, bStart, bEnd) => aStart < bEnd && bStart < aEnd;
@@ -287,7 +286,6 @@ export default function Landing() {
         }
       }
 
-      // Move to next day (noon in tz)
       const nextNoonUtcISO = zonedDateTimeToUTCISO({ y, m, d: d + 1, hh: 12, mm: 0, tz });
       cursorUtc = new Date(nextNoonUtcISO);
     }
@@ -295,7 +293,7 @@ export default function Landing() {
     return out.slice(0, 120);
   }
 
-  /* -------------------- CONTACT → create lead (no email) -------------------- */
+  /* -------------------- CONTACT → create lead -------------------- */
   async function handleContactNext() {
     const name = (fullName || "").trim();
     const em = (email || "").trim();
@@ -337,7 +335,6 @@ export default function Landing() {
     setStep("qualify");
   }
 
-  // Open modal fresh
   function openModal() {
     setOpen(true);
     setStep("contact");
@@ -363,20 +360,28 @@ export default function Landing() {
       {/* Header */}
       <header className="mx-auto max-w-6xl px-4 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {settings?.logo_url ? (
+          {loading ? (
+            <Skeleton className="h-9 w-32 rounded" />
+          ) : settings?.logo_url ? (
             <img src={settings.logo_url} alt="logo" className="h-9" />
           ) : (
             <div className="h-9 w-32 bg-white/10 rounded" />
           )}
-          <span className="text-white/60">{settings?.site_name || "Momentum Financial"}</span>
+          <span className="text-white/60">
+            {loading ? <span className="inline-block h-4 w-28 animate-pulse bg-white/10 rounded" /> : (settings?.site_name || "Momentum Financial")}
+          </span>
         </div>
         <div />
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-24">
-        {/* HERO — YouTube FIRST */}
+        {/* HERO — video */}
         <section className="pt-2">
-          {ytId ? (
+          {loading ? (
+            <div className="mx-auto w-full max-w-[720px]">
+              <Skeleton className="aspect-video w-full rounded-2xl border border-white/10" />
+            </div>
+          ) : ytId ? (
             <div className="mx-auto w-full max-w-[720px]">
               <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/40">
                 <iframe
@@ -394,9 +399,6 @@ export default function Landing() {
               <div className="aspect-video w-full rounded-xl bg-black/30 border border-white/10 grid place-items-center">
                 <div className="text-center">
                   <div className="text-sm uppercase tracking-wide text-white/50">Video Coming Soon</div>
-                  <div className="mt-2 text-white/70 text-xs">
-                    Add <code>hero_youtube_url</code> in <em>mf_site_settings</em>
-                  </div>
                 </div>
               </div>
             </div>
@@ -404,43 +406,98 @@ export default function Landing() {
 
           {/* CTA */}
           <div className="mt-4">
-            <button
-              onClick={openModal}
-              className="mx-auto w-full sm:w-[min(680px,92vw)] rounded-xl bg-white px-5 py-3 font-semibold text-black shadow active:scale-[.99]"
-            >
-              Book Call
-            </button>
+            {loading ? (
+              <Skeleton className="mx-auto w-full sm:w-[min(680px,92vw)] h-12 rounded-xl" />
+            ) : (
+              <button
+                onClick={openModal}
+                className="mx-auto w-full sm:w-[min(680px,92vw)] rounded-xl bg-white px-5 py-3 font-semibold text-black shadow active:scale-[.99]"
+              >
+                Book Call
+              </button>
+            )}
           </div>
 
-          {/* Personal bar */}
-          <CreatorBar settings={settings} />
-
-          <h1 className="mt-8 text-3xl sm:text-5xl font-extrabold tracking-tight">
-            {settings?.hero_title || "We build closers"}
-          </h1>
-          <p className="mt-3 text-white/70 text-lg">
-            {settings?.hero_sub || "High standards. High pay. No excuses."}
-          </p>
-
-          {/* PROOF only */}
-          <div className="mt-6">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-              <ProofFeed items={proof} visibleCount={4} cycleMs={3000} blurTransition bigSlides />
+          {/* Creator / socials */}
+          {loading ? (
+            <div className="mt-5">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <div className="flex-1">
+                    <Skeleton className="h-3 w-24 rounded mb-2" />
+                    <Skeleton className="h-4 w-40 rounded" />
+                  </div>
+                  <Skeleton className="h-9 w-28 rounded-xl" />
+                  <Skeleton className="h-9 w-28 rounded-xl" />
+                </div>
+              </div>
             </div>
+          ) : (
+            <CreatorBar settings={settings} />
+          )}
+
+          {/* Headline + sub */}
+          <div className="mt-8">
+            {loading ? (
+              <>
+                <Skeleton className="h-8 w-3/4 rounded mb-2" />
+                <Skeleton className="h-4 w-1/2 rounded" />
+              </>
+            ) : (
+              <>
+                <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
+                  {settings?.hero_title || "We build closers"}
+                </h1>
+                <p className="mt-3 text-white/70 text-lg">
+                  {settings?.hero_sub || "High standards. High pay. No excuses."}
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* PROOF */}
+          <div className="mt-6">
+            {loading ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-28 w-full rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                <ProofFeed items={proof} visibleCount={4} cycleMs={3000} blurTransition bigSlides />
+              </div>
+            )}
           </div>
         </section>
 
         {/* ABOUT */}
         <section className="mt-16 grid gap-6 sm:grid-cols-[160px,1fr] items-start">
-          {settings?.headshot_url ? (
-            <img src={settings.headshot_url} alt="headshot" className="h-40 w-40 rounded-2xl object-cover" />
+          {loading ? (
+            <>
+              <Skeleton className="h-40 w-40 rounded-2xl" />
+              <div>
+                <Skeleton className="h-5 w-40 rounded mb-3" />
+                <Skeleton className="h-4 w-full rounded mb-2" />
+                <Skeleton className="h-4 w-5/6 rounded" />
+              </div>
+            </>
           ) : (
-            <div className="h-40 w-40 rounded-2xl bg-white/10" />
+            <>
+              {settings?.headshot_url ? (
+                <img src={settings.headshot_url} alt="headshot" className="h-40 w-40 rounded-2xl object-cover" />
+              ) : (
+                <div className="h-40 w-40 rounded-2xl bg-white/10" />
+              )}
+              <div>
+                <h2 className="text-xl font-bold">About {settings?.about_name || "Your Mentor"}</h2>
+                <p className="text-white/80 mt-2">{settings?.about_bio || "Upload headshot and edit this in Admin."}</p>
+              </div>
+            </>
           )}
-          <div>
-            <h2 className="text-xl font-bold">About {settings?.about_name || "Your Mentor"}</h2>
-            <p className="text-white/80 mt-2">{settings?.about_bio || "Upload headshot and edit this in Admin."}</p>
-          </div>
         </section>
       </main>
 
@@ -573,7 +630,6 @@ export default function Landing() {
                           onClick={async () => {
                             try {
                               setBooking(true);
-                              // Re-read availability to match Admin tz/duration on submit
                               const { data: av } = await supabase
                                 .from("mf_availability")
                                 .select("*")
