@@ -1,3 +1,4 @@
+// File: src/pages/Landing.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import { readUTM } from "../lib/utm.js";
@@ -43,39 +44,42 @@ function CreatorBar({ settings }) {
   return (
     <section className="mt-5">
       <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-        <div className="flex items-center gap-3">
-          {/* avatar */}
-          <div className="shrink-0">
-            {avatar ? (
-              <img src={avatar} alt={name} className="h-10 w-10 rounded-xl object-cover border border-white/10" />
-            ) : (
-              <div className="h-10 w-10 rounded-xl bg-white/10" />
-            )}
+        {/* On small screens stack; on >=sm keep in one row */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {/* avatar + name */}
+          <div className="flex items-center gap-3">
+            <div className="shrink-0">
+              {avatar ? (
+                <img src={avatar} alt={name} className="h-10 w-10 rounded-xl object-cover border border-white/10" />
+              ) : (
+                <div className="h-10 w-10 rounded-xl bg-white/10" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-white/60 leading-tight">Personal page</div>
+              <div className="font-semibold leading-tight">{name}</div>
+            </div>
           </div>
 
-          {/* name */}
-          <div className="min-w-0 flex-1">
-            <div className="text-sm text-white/60">Personal page</div>
-            <div className="font-semibold leading-tight">{name}</div>
-          </div>
-
-          {/* pill buttons (icon + label, no handle) */}
-          <div className="flex items-center gap-2">
-            {items.map(({ key, label, href, Icon }) => (
-              <a
-                key={key}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/30 px-3 py-1.5 text-sm text-white/90 hover:bg黑/50 hover:border-white/40 transition"
-                aria-label={label}
-              >
-                <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-white/10">
-                  <Icon />
-                </span>
-                <span>{label}</span>
-              </a>
-            ))}
+          {/* social buttons — responsive grid on mobile, inline on desktop */}
+          <div className="sm:ml-auto">
+            <div className="grid grid-cols-2 gap-2 max-[380px]:grid-cols-1 sm:flex sm:flex-row sm:items-center">
+              {items.map(({ key, label, href, Icon }) => (
+                <a
+                  key={key}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 hover:bg-white/15 transition"
+                  aria-label={label}
+                >
+                  <span className="inline-grid h-5 w-5 place-items-center rounded-full bg-white/10">
+                    <Icon />
+                  </span>
+                  <span className="font-medium">{label}</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -365,16 +369,17 @@ export default function Landing() {
 
       <main className="mx-auto max-w-6xl px-4 pb-24">
         {/* HERO — YouTube FIRST */}
-        <section className="pt-4">
+        <section className="pt-2">
           {ytId ? (
-            <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40">
-              <div className="aspect-video">
+            <div className="mx-auto w-full max-w-[720px]">
+              <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/40">
                 <iframe
-                  className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1`}
+                  className="absolute inset-0 h-full w-full"
+                  src={`https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&playsinline=1`}
                   title="Intro"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -395,13 +400,13 @@ export default function Landing() {
           <div className="mt-4">
             <button
               onClick={openModal}
-              className="rounded-lg bg-white text-black px-5 py-3 font-semibold w-full sm:w-auto"
+              className="mx-auto w-full sm:w-[min(680px,92vw)] rounded-xl bg-white px-5 py-3 font-semibold text-black shadow active:scale-[.99]"
             >
               Book Call
             </button>
           </div>
 
-          {/* Crisp personal bar for Logan */}
+          {/* Personal bar */}
           <CreatorBar settings={settings} />
 
           <h1 className="mt-8 text-3xl sm:text-5xl font-extrabold tracking-tight">
@@ -602,7 +607,7 @@ export default function Landing() {
                           }}
                           className={`rounded-lg border px-3 py-2 text-left ${
                             slt.isTaken || slt.isBlocked
-                              ? "border-white/10 bg-white/[0.03] text白/40 cursor-not-allowed"
+                              ? "border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed"
                               : "border-white/15 bg-white/5 hover:bg-white/10"
                           }`}
                         >
