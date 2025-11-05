@@ -6,6 +6,49 @@ import ProofFeed from "../components/ProofFeed.jsx";
 import QualifyForm from "../components/QualifyForm.jsx";
 import { initAnalytics } from "../lib/analytics.js";
 
+/* ---------------------- Social strip (inline component) ---------------------- */
+function SocialStrip({ settings }) {
+  const instaHandle = settings?.social_instagram_handle || "";
+  const instaUrl    = settings?.social_instagram_url    || (instaHandle ? `https://instagram.com/${instaHandle.replace(/^@/, "")}` : "");
+  const ytUrl       = settings?.social_youtube_url      || "";
+  const snapHandle  = settings?.social_snapchat_handle  || "";
+  const snapUrl     = settings?.social_snapchat_url     || (snapHandle ? `https://www.snapchat.com/add/${snapHandle.replace(/^@/, "")}` : "");
+
+  const items = [
+    ytUrl && { key: "yt", label: "YouTube", sub: "", href: ytUrl, icon: "▶" },
+    (instaUrl || instaHandle) && { key: "ig", label: "Instagram", sub: instaHandle || "", href: instaUrl || "#", icon: "⌁" },
+    (snapUrl || snapHandle) && { key: "sc", label: "Snapchat", sub: snapHandle || "", href: snapUrl || "#", icon: "✦" },
+  ].filter(Boolean);
+
+  if (!items.length) return null;
+
+  return (
+    <section className="mt-6">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-white/80 text-sm sm:text-base font-medium">Connect with us</div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {items.map(({ key, label, sub, href, icon }) => (
+              <a
+                key={key}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-white/80 hover:text-white hover:border-white/20 hover:bg-black/60 transition"
+                aria-label={`Visit our ${label}`}
+              >
+                <span className="inline-grid place-items-center h-5 w-5 text-xs opacity-80 group-hover:opacity-100">{icon}</span>
+                <span className="text-sm sm:text-base">{label}</span>
+                {sub ? <span className="text-xs text-white/60">{sub}</span> : null}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ---------------------- YouTube ID helper ---------------------- */
 function extractYouTubeId(url = "") {
   if (!url) return "";
@@ -220,6 +263,7 @@ export default function Landing() {
     }
 
     const utm = readUTM();
+    the
     const nowIso = new Date().toISOString();
     const { data, error } = await supabase
       .from("mf_leads")
@@ -323,6 +367,9 @@ export default function Landing() {
               Book Call
             </button>
           </div>
+
+          {/* NEW: socials strip */}
+          <SocialStrip settings={settings} />
 
           <h1 className="mt-8 text-3xl sm:text-5xl font-extrabold tracking-tight">
             {settings?.hero_title || "We build closers"}
