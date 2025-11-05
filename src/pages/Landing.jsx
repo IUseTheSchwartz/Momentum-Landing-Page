@@ -10,11 +10,8 @@ import { initAnalytics } from "../lib/analytics.js";
 function Skeleton({ className = "" }) {
   return <div className={`animate-pulse rounded-md bg-white/10 ${className}`} />;
 }
-function Line({ w = "100%", h = "14px" }) {
-  return <Skeleton className={`h-[${h}]`} style={{ width: w }} />;
-}
 
-/* ---------------------- Minimal Creator Bar (with fix) ---------------------- */
+/* ---------------------- Minimal Creator Bar (clean icons) ---------------------- */
 function CreatorBar({ settings }) {
   const name   = settings?.about_name || "Logan Harris";
   const avatar = settings?.headshot_url || null;
@@ -25,27 +22,35 @@ function CreatorBar({ settings }) {
 
   const items = [
     ytUrl && {
-      key: "yt", label: "YouTube", href: ytUrl, Icon: () => (
-        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-          <path fill="currentColor" d="M23.5 6.2a4 4 0 0 0-2.8-2.9C18.8 2.8 12 2.8 12 2.8s-6.8 0-8.7.5A4 4 0 0 0 .5 6.2 41.7 41.7 0 0 0 0 12a41.7 41.7 0 0 0 .5 5.8 4 4 0 0 0 2.8 2.9c1.9.5 8.7.5 8.7.5s6.8 0 8.7-.5a4 4 0 0 0 2.8-2.9c.4-1.9.5-5.8.5-5.8s0-3.9-.5-5.8ZM9.6 15.5v-7l6.6 3.5-6.6 3.5Z"/>
+      key: "yt",
+      label: "YouTube",
+      href: ytUrl,
+      Icon: (props) => (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true" fill="currentColor" {...props}>
+          <path d="M23.5 6.2a4 4 0 0 0-2.8-2.9C18.8 2.8 12 2.8 12 2.8s-6.8 0-8.7.5A4 4 0 0 0 .5 6.2 41.7 41.7 0 0 0 0 12a41.7 41.7 0 0 0 .5 5.8 4 4 0 0 0 2.8 2.9c1.9.5 8.7.5 8.7.5s6.8 0 8.7-.5a4 4 0 0 0 2.8-2.9c.4-1.9.5-5.8.5-5.8s0-3.9-.5-5.8ZM9.6 15.5v-7l6.6 3.5-6.6 3.5Z"/>
         </svg>
       )
     },
     igUrl && {
-      key: "ig", label: "Instagram", href: igUrl, Icon: () => (
-        /* reliable IG glyph */
-        <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M8 0C5.79 0 5.491.01 4.659.048c-.832.038-1.402.177-1.9.378-.514.207-.95.484-1.385.919-.435.435-.712.871-.919 1.385-.201.498-.34 1.068-.378 1.9C0 5.491.01 5.79.048 6.622.086 7.454.225 8.024.426 8.522c.207.514.484.95.919 1.385.435.435.871.712 1.385.919.498.201 1.068.34 1.9.378.832.038 1.131.048 2.963.048s2.131-.01 2.963-.048c.832-.038 1.402-.177 1.9-.378a4.02 4.02 0 0 0 1.385-.919 4.02 4.02 0 0 0 .919-1.385c.201-.498.34-1.068.378-1.9.038-.832.048-1.131.048-2.963s-.01-2.131-.048-2.963c-.038-.832-.177-1.402-.378-1.9a4.02 4.02 0 0 0-.919-1.385A4.02 4.02 0 0 0 13.3.426c-.498-.201-1.068-.34-1.9-.378C10.568.01 10.269 0 8 0Zm0 1.454c2.2 0 2.469.008 3.341.048.806.037 1.243.172 1.535.287.387.15.663.33.954.621.291.291.471.567.621.954.115.292.25.729.287 1.535.04.872.048 1.141.048 3.341s-.008 2.469-.048 3.341c-.037.806-.172 1.243-.287 1.535a2.57 2.57 0 0 1-.621.954 2.57 2.57 0 0 1-.954.621c-.292.115-.729.25-1.535.287-.872.04-1.141.048-3.341.048s-2.469-.008-3.341-.048c-.806-.037-1.243-.172-1.535-.287a2.57 2.57 0 0 1-.954-.621 2.57 2.57 0 0 1-.621-.954c-.115-.292-.25-.729-.287-1.535-.04-.872-.048-1.141-.048-3.341s.008-2.469.048-3.341c.037-.806.172-1.243.287-1.535.15-.387.33-.663.621-.954.291-.291.567-.471.954-.621.292-.115.729-.25 1.535-.287.872-.04 1.141-.048 3.341-.048Zm0 2.486a4.06 4.06 0 1 0 0 8.12 4.06 4.06 0 0 0 0-8.12Zm0 6.706a2.646 2.646 0 1 1 0-5.292 2.646 2.646 0 0 1 0 5.292Zm4.943-6.937a.95.95 0 1 1-1.9 0 .95.95 0 0 1 1.9 0Z"
-          />
+      key: "ig",
+      label: "Instagram",
+      href: igUrl,
+      // Crisp outline IG; no background circle
+      Icon: (props) => (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <rect x="2.5" y="2.5" width="19" height="19" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none" />
         </svg>
       )
     },
     scUrl && {
-      key: "sc", label: "Snapchat", href: scUrl, Icon: () => (
-        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-          <path fill="currentColor" d="M12 2c3.4 0 6.2 2.7 6.2 6 0 1.2-.3 2.2-.9 3 .5.4 1 .7 1.5.9.4.2.7.6.7 1 0 .7-.7 1-1.3 1.1-.7.2-1.3.3-1.8.6.3.8.9 1.3 2 1.6.4.1.7.4.7.8 0 .6-.6 1-1.4 1-1.7 0-3-.6-3.9-1.5-.9.9-2.2 1.5-3.9 1.5s-3-.6-3.9-1.5c-.9.9-2.2 1.5-3.9 1.5-.8 0-1.4-.4-1.4-1 0-.4.3-.7.7-.8 1.1-.3 1.7-.8 2-1.6-.5-.3-1.1-.4-1.8-.6C1.7 14 1 13.7 1 13c0-.4.3-.8.7-1 0 0 1-.4 1.5-.9-.6-.8-.9-1.8-.9-3C2.3 4.7 5.1 2 8.5 2H12Z"/>
+      key: "sc",
+      label: "Snapchat",
+      href: scUrl,
+      Icon: (props) => (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true" fill="currentColor" {...props}>
+          <path d="M12 2c3.4 0 6.2 2.7 6.2 6 0 1.2-.3 2.2-.9 3 .5.4 1 .7 1.5.9.4.2.7.6.7 1 0 .7-.7 1-1.3 1.1-.7.2-1.3.3-1.8.6.3.8.9 1.3 2 1.6.4.1.7.4.7.8 0 .6-.6 1-1.4 1-1.7 0-3-.6-3.9-1.5-.9.9-2.2 1.5-3.9 1.5s-3-.6-3.9-1.5c-.9.9-2.2 1.5-3.9 1.5-.8 0-1.4-.4-1.4-1 0-.4.3-.7.7-.8 1.1-.3 1.7-.8 2-1.6-.5-.3-1.1-.4-1.8-.6C1.7 14 1 13.7 1 13c0-.4.3-.8.7-1 0 0 1-.4 1.5-.9-.6-.8-.9-1.8-.9-3C2.3 4.7 5.1 2 8.5 2H12Z"/>
         </svg>
       )
     },
@@ -72,7 +77,7 @@ function CreatorBar({ settings }) {
             </div>
           </div>
 
-          {/* social buttons — responsive, never overlap */}
+          {/* socials — responsive, no icon background circle */}
           <div className="sm:ml-auto">
             <div className="grid grid-cols-2 gap-2 max-[380px]:grid-cols-1 sm:flex sm:flex-row sm:items-center">
               {items.map(({ key, label, href, Icon }) => (
@@ -84,9 +89,7 @@ function CreatorBar({ settings }) {
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 hover:bg-white/15 transition"
                   aria-label={label}
                 >
-                  <span className="inline-grid h-5 w-5 place-items-center rounded-full bg-white/10">
-                    <Icon />
-                  </span>
+                  <Icon />
                   <span className="font-medium">{label}</span>
                 </a>
               ))}
@@ -168,7 +171,6 @@ export default function Landing() {
     initAnalytics();
 
     (async () => {
-      // fetch in parallel so it feels instant
       const [sRes, qRes, pRes] = await Promise.all([
         supabase.from("mf_site_settings").select("*").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("mf_questions").select("*").eq("is_active", true).order("sort_order", { ascending: true }),
@@ -186,7 +188,7 @@ export default function Landing() {
       setSettings(sRes?.data || {});
       setQuestions(qRes?.data || []);
       setProof(pRes?.data || []);
-      setLoading(false); // only now reveal real content
+      setLoading(false);
     })();
   }, []);
 
