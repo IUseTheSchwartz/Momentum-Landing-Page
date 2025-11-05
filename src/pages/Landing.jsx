@@ -1,4 +1,3 @@
-// File: src/pages/Landing.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import { readUTM } from "../lib/utm.js";
@@ -6,50 +5,36 @@ import ProofFeed from "../components/ProofFeed.jsx";
 import QualifyForm from "../components/QualifyForm.jsx";
 import { initAnalytics } from "../lib/analytics.js";
 
-/* ---------------------- Minimal Creator Bar (clean/pro) ---------------------- */
+/* ---------------------- Minimal Creator Bar (icon + label pills) ---------------------- */
 function CreatorBar({ settings }) {
-  const name = settings?.about_name || "Logan Harris";
+  const name   = settings?.about_name || "Logan Harris";
   const avatar = settings?.headshot_url || null;
 
-  const igHandle = settings?.social_instagram_handle || "";
-  const igUrl = settings?.social_instagram_url || (igHandle ? `https://instagram.com/${igHandle.replace(/^@/, "")}` : "");
-  const ytUrl = settings?.social_youtube_url || "";
-  const scHandle = settings?.social_snapchat_handle || "";
-  const scUrl = settings?.social_snapchat_url || (scHandle ? `https://www.snapchat.com/add/${scHandle.replace(/^@/, "")}` : "");
+  const ytUrl  = settings?.social_youtube_url || "";
+  const igUrl  = settings?.social_instagram_url || "";
+  const scUrl  = settings?.social_snapchat_url || "";
 
   const items = [
     ytUrl && {
-      key: "yt",
-      label: "YouTube",
-      href: ytUrl,
-      Icon: () => (
+      key: "yt", label: "YouTube", href: ytUrl, Icon: () => (
         <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
           <path fill="currentColor" d="M23.5 6.2a4 4 0 0 0-2.8-2.9C18.8 2.8 12 2.8 12 2.8s-6.8 0-8.7.5A4 4 0 0 0 .5 6.2 41.7 41.7 0 0 0 0 12a41.7 41.7 0 0 0 .5 5.8 4 4 0 0 0 2.8 2.9c1.9.5 8.7.5 8.7.5s6.8 0 8.7-.5a4 4 0 0 0 2.8-2.9c.4-1.9.5-5.8.5-5.8s0-3.9-.5-5.8ZM9.6 15.5v-7l6.6 3.5-6.6 3.5Z"/>
         </svg>
-      ),
-      sub: "",
+      )
     },
-    (igUrl || igHandle) && {
-      key: "ig",
-      label: "Instagram",
-      href: igUrl || "#",
-      Icon: () => (
+    igUrl && {
+      key: "ig", label: "Instagram", href: igUrl, Icon: () => (
         <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-          <path fill="currentColor" d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.3 2.3.5.6.2 1 .5 1.5 1 .4.4.8.9 1 1.5.2.4.4 1.1.5 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.9-.5 2.3-.2.6-.5 1-1 1.5-.4.4-.9.8-1.5 1-.4.2-1.1.4-2.3.5-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.3-2.3-.5-.6-.2-1-.5-1.5-1-.4-.4-.8-.9-1-1.5-.2-.4-.4-1.1-.5-2.3C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.9.5-2.3.2-.6.5-1 1-1.5.4-.4.9-.8 1.5-1 .4-.2 1.1-.4 2.3-.5C8.4 2.2 8.8 2.2 12 2.2Zm0 1.8c-3.1 0-3.4 0-4.7.1-1 .1-1.5.2-1.9.4-.5.2-.8.4-1.1.7-.3.3-.6.7-.7 1.1-.2.4-.3.9-.4 1.9-.1 1.2-.1 1.6-.1 4.7s0 3.4.1 4.7c.1 1 .2 1.5.4 1.9.2.5.4.8.7 1.1.3.3.7.6 1.1.7.4.2.9.3 1.9.4 1.2.1 1.6.1 4.7.1s3.4 0 4.7-.1c1-.1 1.5-.2 1.9-.4.5-.2.8-.4 1.1-.7.3-.3.6-.7.7-1.1.2-.4.3-.9.4-1.9.1-1.2.1-1.6.1-4.7s0-3.4-.1-4.7c-.1-1-.2-1.5-.4-1.9-.2-.5-.4-.8-.7-1.1-.3-.3-.7-.6-1.1-.7-.4-.2-.9-.3-1.9-.4-1.2-.1-1.6-.1-4.7-.1Zm0 3.4a4.6 4.6 0 1 1 0 9.2 4.6 4.6 0 0 1 0-9.2Zm0 1.8a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Zm5-2.2a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2Z"/>
+          <path fill="currentColor" d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.3 2.3.5.6.2 1 .5 1.5 1 .4.4.8.9 1 1.5.2.4.4 1.1.5 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.9-.5 2.3-.2.6-.5 1-1 1.5-.4.4-.9.8-1.5 1-.4.2-1.1.4-2.3.5-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.3-2.3-.5-.6-.2-1-.5-1.5-1-.4-.4-.8-.9-1-1.5-.2-.4-.4-1.1-.5-2.3C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.9.5-2.3.2-.6.5-1 1-1.5.4-.4.9-.8 1.5-1 .4-.2 1.1-.4 2.3-.5C8.4 2.2 8.8 2.2 12 2.2Zm0 3.4a4.6 4.6 0 1 1 0 9.2 4.6 4.6 0 0 1 0-9.2Zm5-2.2a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2Z"/>
         </svg>
-      ),
-      sub: igHandle || "",
+      )
     },
-    (scUrl || scHandle) && {
-      key: "sc",
-      label: "Snapchat",
-      href: scUrl || "#",
-      Icon: () => (
+    scUrl && {
+      key: "sc", label: "Snapchat", href: scUrl, Icon: () => (
         <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
           <path fill="currentColor" d="M12 2c3.4 0 6.2 2.7 6.2 6 0 1.2-.3 2.2-.9 3 .5.4 1 .7 1.5.9.4.2.7.6.7 1 0 .7-.7 1-1.3 1.1-.7.2-1.3.3-1.8.6.3.8.9 1.3 2 1.6.4.1.7.4.7.8 0 .6-.6 1-1.4 1-1.7 0-3-.6-3.9-1.5-.9.9-2.2 1.5-3.9 1.5s-3-.6-3.9-1.5c-.9.9-2.2 1.5-3.9 1.5-.8 0-1.4-.4-1.4-1 0-.4.3-.7.7-.8 1.1-.3 1.7-.8 2-1.6-.5-.3-1.1-.4-1.8-.6C1.7 14 1 13.7 1 13c0-.4.3-.8.7-1 0 0 1-.4 1.5-.9-.6-.8-.9-1.8-.9-3C2.3 4.7 5.1 2 8.5 2H12Z"/>
         </svg>
-      ),
-      sub: scHandle || "",
+      )
     },
   ].filter(Boolean);
 
@@ -62,11 +47,7 @@ function CreatorBar({ settings }) {
           {/* avatar */}
           <div className="shrink-0">
             {avatar ? (
-              <img
-                src={avatar}
-                alt={name}
-                className="h-10 w-10 rounded-xl object-cover border border-white/10"
-              />
+              <img src={avatar} alt={name} className="h-10 w-10 rounded-xl object-cover border border-white/10" />
             ) : (
               <div className="h-10 w-10 rounded-xl bg-white/10" />
             )}
@@ -74,24 +55,25 @@ function CreatorBar({ settings }) {
 
           {/* name */}
           <div className="min-w-0 flex-1">
-            <div className="text-sm text-white/70">Personal page</div>
+            <div className="text-sm text-white/60">Personal page</div>
             <div className="font-semibold leading-tight">{name}</div>
           </div>
 
-          {/* buttons */}
+          {/* pill buttons (icon + label, no handle) */}
           <div className="flex items-center gap-2">
-            {items.map(({ key, label, href, Icon, sub }) => (
+            {items.map(({ key, label, href, Icon }) => (
               <a
                 key={key}
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`Open ${label}`}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/12 bg-black/30 px-3 py-1.5 text-sm text-white/80 hover:text-white hover:bg-black/50 transition"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/30 px-3 py-1.5 text-sm text-white/90 hover:bg黑/50 hover:border-white/40 transition"
+                aria-label={label}
               >
-                <Icon />
-                <span className="hidden sm:inline">{label}</span>
-                {sub ? <span className="hidden lg:inline text-white/50">{sub}</span> : null}
+                <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-white/10">
+                  <Icon />
+                </span>
+                <span>{label}</span>
               </a>
             ))}
           </div>
@@ -314,7 +296,7 @@ export default function Landing() {
       return;
     }
 
-    const utm = readUTM(); // <- fixed stray word
+    const utm = readUTM();
     const nowIso = new Date().toISOString();
     const { data, error } = await supabase
       .from("mf_leads")
@@ -620,7 +602,7 @@ export default function Landing() {
                           }}
                           className={`rounded-lg border px-3 py-2 text-left ${
                             slt.isTaken || slt.isBlocked
-                              ? "border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed"
+                              ? "border-white/10 bg-white/[0.03] text白/40 cursor-not-allowed"
                               : "border-white/15 bg-white/5 hover:bg-white/10"
                           }`}
                         >
