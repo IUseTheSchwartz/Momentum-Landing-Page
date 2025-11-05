@@ -1,4 +1,3 @@
-// File: src/pages/admin/AdminSettings.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Cropper from "react-easy-crop";
 import { supabase, uploadPublic } from "../../lib/supabaseClient.js";
@@ -191,7 +190,7 @@ export default function AdminSettings() {
 
         <Row label="Site Name">
           <input
-            className="w-full bg-white/5 border border-white/15 p-2 rounded"
+            className="w-full bg白/5 border border白/15 p-2 rounded"
             value={s.site_name || ""}
             onChange={(e) => setS({ ...s, site_name: e.target.value })}
             onBlur={() => savePartial({ site_name: s.site_name || null })}
@@ -255,33 +254,9 @@ export default function AdminSettings() {
           />
         </Row>
 
-        {/* --------- NEW: Socials --------- */}
+        {/* --------- Socials (URLs only) --------- */}
         <div className="mt-6 pt-4 border-t border-white/10">
           <h4 className="text-md font-semibold mb-2">Socials</h4>
-
-          <Row label="Instagram @handle">
-            <input
-              className="w-full bg-white/5 border border-white/15 p-2 rounded"
-              value={s.social_instagram_handle || ""}
-              onChange={(e) => setS({ ...s, social_instagram_handle: e.target.value })}
-              onBlur={() =>
-                savePartial({ social_instagram_handle: s.social_instagram_handle || null })
-              }
-              placeholder="@yourhandle"
-            />
-          </Row>
-
-          <Row label="Instagram URL">
-            <input
-              className="w-full bg-white/5 border border-white/15 p-2 rounded"
-              value={s.social_instagram_url || ""}
-              onChange={(e) => setS({ ...s, social_instagram_url: e.target.value })}
-              onBlur={() =>
-                savePartial({ social_instagram_url: s.social_instagram_url || null })
-              }
-              placeholder="https://instagram.com/yourhandle"
-            />
-          </Row>
 
           <Row label="YouTube URL">
             <input
@@ -293,15 +268,13 @@ export default function AdminSettings() {
             />
           </Row>
 
-          <Row label="Snapchat @handle">
+          <Row label="Instagram URL">
             <input
               className="w-full bg-white/5 border border-white/15 p-2 rounded"
-              value={s.social_snapchat_handle || ""}
-              onChange={(e) => setS({ ...s, social_snapchat_handle: e.target.value })}
-              onBlur={() =>
-                savePartial({ social_snapchat_handle: s.social_snapchat_handle || null })
-              }
-              placeholder="@yourhandle"
+              value={s.social_instagram_url || ""}
+              onChange={(e) => setS({ ...s, social_instagram_url: e.target.value })}
+              onBlur={() => savePartial({ social_instagram_url: s.social_instagram_url || null })}
+              placeholder="https://instagram.com/yourhandle"
             />
           </Row>
 
@@ -310,16 +283,13 @@ export default function AdminSettings() {
               className="w-full bg-white/5 border border-white/15 p-2 rounded"
               value={s.social_snapchat_url || ""}
               onChange={(e) => setS({ ...s, social_snapchat_url: e.target.value })}
-              onBlur={() =>
-                savePartial({ social_snapchat_url: s.social_snapchat_url || null })
-              }
+              onBlur={() => savePartial({ social_snapchat_url: s.social_snapchat_url || null })}
               placeholder="https://www.snapchat.com/add/yourhandle"
             />
           </Row>
 
           <div className="text-xs text-white/50 mt-2">
-            Tip: You can set either a handle or a full URL. If the URL is empty, the landing page
-            will auto-build it from the handle.
+            Paste full links only. These power the icon buttons on the landing page.
           </div>
         </div>
 
@@ -342,8 +312,8 @@ export default function AdminSettings() {
                 image={cropSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={1}            // 1:1 headshot
-                cropShape="round"     // nice round preview
+                aspect={1}
+                cropShape="round"
                 showGrid={false}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
