@@ -84,6 +84,38 @@ export default function ProofFeed({
   const [slideKey, setSlideKey] = useState(0);
   useEffect(() => setSlideKey((k) => k + 1), [page]);
 
+  /* ---------- NEW: lock all cards to the first card's natural height ---------- */
+  const firstCardRef = useRef(null);
+  const [lockedHeight, setLockedHeight] = useState(null);
+  const [settleTick, setSettleTick] = useState(0); // bump when first card's image settles
+
+  // Measure the first card once it exists (and after its image loads) and on resize.
+  useEffect(() => {
+    const measure = () => {
+      if (!firstCardRef.current) return;
+      // allow layout to settle
+      requestAnimationFrame(() => {
+        const h = firstCardRef.current.offsetHeight;
+        if (h && h !== lockedHeight) setLockedHeight(h);
+      });
+    };
+
+    // Only measure off the FIRST slide's FIRST card
+    if (page === 0 && lockedHeight == null) {
+      measure();
+    }
+
+    const onResize = () => {
+      // keep the lock stable; if you prefer dynamic resizing, remove the guard
+      if (lockedHeight == null) measure();
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [page, slideKey, settleTick, lockedHeight]);
+
+  // Callback for first card images to signal they've loaded/errored
+  const handleFirstCardSettled = () => setSettleTick((t) => t + 1);
+
   return (
     <div className="relative">
       <div className="overflow-hidden">
@@ -94,7 +126,16 @@ export default function ProofFeed({
           } auto-rows-fr`}
         >
           {pages[page].map((it, i) => (
-            <DiscordCard key={`${page}-${i}`} item={it} blur={blurTransition} />
+            <DiscordCard
+              key={`${page}-${i}`}
+              item={it}
+              blur={blurTransition}
+              // Lock min-height so cards never jump between pages
+              lockedHeight={lockedHeight}
+              // tap the very first card on the very first slide for measuring
+              cardRef={page === 0 && i === 0 ? firstCardRef : undefined}
+              onImageSettled={page === 0 && i === 0 ? handleFirstCardSettled : undefined}
+            />
           ))}
         </div>
       </div>
@@ -117,19 +158,25 @@ export default function ProofFeed({
   );
 }
 
-function DiscordCard({ item, blur }) {
+function DiscordCard({ item, blur, lockedHeight, cardRef, onImageSettled }) {
   const { name, avatar, text, image, amountStr } = item;
 
   return (
     <div
+      ref={cardRef}
       className={[
         "rounded-xl border border-white/10 bg-[#2b2d31] p-3",
         "shadow-lg shadow-black/30",
         "transition-all duration-500",
-        "h-full flex flex-col",               // equal height
+        "h-full flex flex-col",               // equal height within the grid row
         blur ? "hover:scale-[1.01]" : "",
       ].join(" ")}
-      style={blur ? { animation: "pfFade 600ms ease both, pfSlide 600ms ease both" } : undefined}
+      style={{
+        ...(blur ? { animation: "pfFade 600ms ease both, pfSlide 600ms ease both" } : {}),
+        // NEW: apply locked min-height so layout never changes as slides change
+        ...(lockedHeight ? { minHeight: `${lockedHeight}px` } : {}),
+      }}
+      data-proof-card
     >
       {/* Header line = avatar + name + amount chip (no pinned badge, no timestamp) */}
       <div className="flex items-start gap-3">
@@ -139,6 +186,8 @@ function DiscordCard({ item, blur }) {
             src={avatar}
             alt=""
             className="h-10 w-10 rounded-full object-cover border border-white/10"
+            onLoad={onImageSettled}
+            onError={onImageSettled}
           />
         ) : (
           <div className="h-10 w-10 rounded-full grid place-items-center bg-white/10 border border-white/10 text-xs font-semibold">
@@ -170,6 +219,8 @@ function DiscordCard({ item, blur }) {
                 alt=""
                 className="w-full h-auto max-h-56 object-cover"
                 style={{ display: "block" }}
+                onLoad={onImageSettled}
+                onError={onImageSettled}
               />
             </div>
           )}
