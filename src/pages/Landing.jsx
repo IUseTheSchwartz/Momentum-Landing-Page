@@ -6,40 +6,92 @@ import ProofFeed from "../components/ProofFeed.jsx";
 import QualifyForm from "../components/QualifyForm.jsx";
 import { initAnalytics } from "../lib/analytics.js";
 
-/* ---------------------- Social strip (inline component) ---------------------- */
-function SocialStrip({ settings }) {
-  const instaHandle = settings?.social_instagram_handle || "";
-  const instaUrl    = settings?.social_instagram_url    || (instaHandle ? `https://instagram.com/${instaHandle.replace(/^@/, "")}` : "");
-  const ytUrl       = settings?.social_youtube_url      || "";
-  const snapHandle  = settings?.social_snapchat_handle  || "";
-  const snapUrl     = settings?.social_snapchat_url     || (snapHandle ? `https://www.snapchat.com/add/${snapHandle.replace(/^@/, "")}` : "");
+/* ---------------------- Minimal Creator Bar (clean/pro) ---------------------- */
+function CreatorBar({ settings }) {
+  const name = settings?.about_name || "Logan Harris";
+  const avatar = settings?.headshot_url || null;
+
+  const igHandle = settings?.social_instagram_handle || "";
+  const igUrl = settings?.social_instagram_url || (igHandle ? `https://instagram.com/${igHandle.replace(/^@/, "")}` : "");
+  const ytUrl = settings?.social_youtube_url || "";
+  const scHandle = settings?.social_snapchat_handle || "";
+  const scUrl = settings?.social_snapchat_url || (scHandle ? `https://www.snapchat.com/add/${scHandle.replace(/^@/, "")}` : "");
 
   const items = [
-    ytUrl && { key: "yt", label: "YouTube", sub: "", href: ytUrl, icon: "▶" },
-    (instaUrl || instaHandle) && { key: "ig", label: "Instagram", sub: instaHandle || "", href: instaUrl || "#", icon: "⌁" },
-    (snapUrl || snapHandle) && { key: "sc", label: "Snapchat", sub: snapHandle || "", href: snapUrl || "#", icon: "✦" },
+    ytUrl && {
+      key: "yt",
+      label: "YouTube",
+      href: ytUrl,
+      Icon: () => (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+          <path fill="currentColor" d="M23.5 6.2a4 4 0 0 0-2.8-2.9C18.8 2.8 12 2.8 12 2.8s-6.8 0-8.7.5A4 4 0 0 0 .5 6.2 41.7 41.7 0 0 0 0 12a41.7 41.7 0 0 0 .5 5.8 4 4 0 0 0 2.8 2.9c1.9.5 8.7.5 8.7.5s6.8 0 8.7-.5a4 4 0 0 0 2.8-2.9c.4-1.9.5-5.8.5-5.8s0-3.9-.5-5.8ZM9.6 15.5v-7l6.6 3.5-6.6 3.5Z"/>
+        </svg>
+      ),
+      sub: "",
+    },
+    (igUrl || igHandle) && {
+      key: "ig",
+      label: "Instagram",
+      href: igUrl || "#",
+      Icon: () => (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+          <path fill="currentColor" d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.3 2.3.5.6.2 1 .5 1.5 1 .4.4.8.9 1 1.5.2.4.4 1.1.5 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.9-.5 2.3-.2.6-.5 1-1 1.5-.4.4-.9.8-1.5 1-.4.2-1.1.4-2.3.5-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.3-2.3-.5-.6-.2-1-.5-1.5-1-.4-.4-.8-.9-1-1.5-.2-.4-.4-1.1-.5-2.3C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.9.5-2.3.2-.6.5-1 1-1.5.4-.4.9-.8 1.5-1 .4-.2 1.1-.4 2.3-.5C8.4 2.2 8.8 2.2 12 2.2Zm0 1.8c-3.1 0-3.4 0-4.7.1-1 .1-1.5.2-1.9.4-.5.2-.8.4-1.1.7-.3.3-.6.7-.7 1.1-.2.4-.3.9-.4 1.9-.1 1.2-.1 1.6-.1 4.7s0 3.4.1 4.7c.1 1 .2 1.5.4 1.9.2.5.4.8.7 1.1.3.3.7.6 1.1.7.4.2.9.3 1.9.4 1.2.1 1.6.1 4.7.1s3.4 0 4.7-.1c1-.1 1.5-.2 1.9-.4.5-.2.8-.4 1.1-.7.3-.3.6-.7.7-1.1.2-.4.3-.9.4-1.9.1-1.2.1-1.6.1-4.7s0-3.4-.1-4.7c-.1-1-.2-1.5-.4-1.9-.2-.5-.4-.8-.7-1.1-.3-.3-.7-.6-1.1-.7-.4-.2-.9-.3-1.9-.4-1.2-.1-1.6-.1-4.7-.1Zm0 3.4a4.6 4.6 0 1 1 0 9.2 4.6 4.6 0 0 1 0-9.2Zm0 1.8a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Zm5-2.2a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2Z"/>
+        </svg>
+      ),
+      sub: igHandle || "",
+    },
+    (scUrl || scHandle) && {
+      key: "sc",
+      label: "Snapchat",
+      href: scUrl || "#",
+      Icon: () => (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+          <path fill="currentColor" d="M12 2c3.4 0 6.2 2.7 6.2 6 0 1.2-.3 2.2-.9 3 .5.4 1 .7 1.5.9.4.2.7.6.7 1 0 .7-.7 1-1.3 1.1-.7.2-1.3.3-1.8.6.3.8.9 1.3 2 1.6.4.1.7.4.7.8 0 .6-.6 1-1.4 1-1.7 0-3-.6-3.9-1.5-.9.9-2.2 1.5-3.9 1.5s-3-.6-3.9-1.5c-.9.9-2.2 1.5-3.9 1.5-.8 0-1.4-.4-1.4-1 0-.4.3-.7.7-.8 1.1-.3 1.7-.8 2-1.6-.5-.3-1.1-.4-1.8-.6C1.7 14 1 13.7 1 13c0-.4.3-.8.7-1 0 0 1-.4 1.5-.9-.6-.8-.9-1.8-.9-3C2.3 4.7 5.1 2 8.5 2H12Z"/>
+        </svg>
+      ),
+      sub: scHandle || "",
+    },
   ].filter(Boolean);
 
   if (!items.length) return null;
 
   return (
-    <section className="mt-6">
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-white/80 text-sm sm:text-base font-medium">Connect with us</div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {items.map(({ key, label, sub, href, icon }) => (
+    <section className="mt-5">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+        <div className="flex items-center gap-3">
+          {/* avatar */}
+          <div className="shrink-0">
+            {avatar ? (
+              <img
+                src={avatar}
+                alt={name}
+                className="h-10 w-10 rounded-xl object-cover border border-white/10"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-xl bg-white/10" />
+            )}
+          </div>
+
+          {/* name */}
+          <div className="min-w-0 flex-1">
+            <div className="text-sm text-white/70">Personal page</div>
+            <div className="font-semibold leading-tight">{name}</div>
+          </div>
+
+          {/* buttons */}
+          <div className="flex items-center gap-2">
+            {items.map(({ key, label, href, Icon, sub }) => (
               <a
                 key={key}
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-white/80 hover:text-white hover:border-white/20 hover:bg-black/60 transition"
-                aria-label={`Visit our ${label}`}
+                aria-label={`Open ${label}`}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/12 bg-black/30 px-3 py-1.5 text-sm text-white/80 hover:text-white hover:bg-black/50 transition"
               >
-                <span className="inline-grid place-items-center h-5 w-5 text-xs opacity-80 group-hover:opacity-100">{icon}</span>
-                <span className="text-sm sm:text-base">{label}</span>
-                {sub ? <span className="text-xs text-white/60">{sub}</span> : null}
+                <Icon />
+                <span className="hidden sm:inline">{label}</span>
+                {sub ? <span className="hidden lg:inline text-white/50">{sub}</span> : null}
               </a>
             ))}
           </div>
@@ -262,8 +314,7 @@ export default function Landing() {
       return;
     }
 
-    const utm = readUTM();
-    the
+    const utm = readUTM(); // <- fixed stray word
     const nowIso = new Date().toISOString();
     const { data, error } = await supabase
       .from("mf_leads")
@@ -368,8 +419,8 @@ export default function Landing() {
             </button>
           </div>
 
-          {/* NEW: socials strip */}
-          <SocialStrip settings={settings} />
+          {/* Crisp personal bar for Logan */}
+          <CreatorBar settings={settings} />
 
           <h1 className="mt-8 text-3xl sm:text-5xl font-extrabold tracking-tight">
             {settings?.hero_title || "We build closers"}
