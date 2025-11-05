@@ -406,14 +406,15 @@ export default function Landing() {
             </div>
           )}
 
-          {/* CTA */}
-          <div className="mt-4">
+          {/* CTA (mobile full width, desktop auto/centered) */}
+          <div className="mt-4 text-center">
             {loading ? (
-              <Skeleton className="mx-auto w-full sm:w-[min(680px,92vw)] h-12 rounded-xl" />
+              <Skeleton className="mx-auto h-12 w-full sm:w-72 rounded-xl" />
             ) : (
               <button
                 onClick={openModal}
-                className="mx-auto w-full sm:w-[min(680px,92vw)] rounded-xl bg-white px-5 py-3 font-semibold text-black shadow active:scale-[.99]"
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-white px-6 py-3
+                           font-semibold text-black shadow hover:shadow-lg active:scale-[.99]"
               >
                 Book Call
               </button>
