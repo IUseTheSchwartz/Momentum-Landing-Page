@@ -11,6 +11,7 @@ export default function ThankYou() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Load site settings for logo + name
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -23,6 +24,13 @@ export default function ThankYou() {
       setSettings(data || {});
       setLoading(false);
     })();
+  }, []);
+
+  // 🔹 Meta Pixel: Schedule event on thank-you page
+  useEffect(() => {
+    if (window.fbq) {
+      window.fbq("track", "Schedule");
+    }
   }, []);
 
   return (
