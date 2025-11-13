@@ -8,6 +8,10 @@ import Admin from "./pages/Admin.jsx";
 import AdminLogin from "./pages/AdminLogin.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 
+// NEW
+import Schedule from "./pages/Schedule.jsx";
+import ThankYou from "./pages/ThankYou.jsx";
+
 /** Gate that protects /admin using your existing Supabase session logic */
 function AdminGate() {
   const [session, setSession] = useState(null);
@@ -33,6 +37,8 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<Landing />} />
+        <Route path="/schedule" element={<Schedule />} />
+        <Route path="/thank-you" element={<ThankYou />} />
         <Route path="/reschedule" element={<Reschedule />} />
 
         {/* Admin (auth required) */}
