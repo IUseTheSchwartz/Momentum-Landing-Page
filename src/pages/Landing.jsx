@@ -1,5 +1,6 @@
 // File: src/pages/Landing.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient.js";
 import { readUTM } from "../lib/utm.js";
 import ProofFeed from "../components/ProofFeed.jsx";
@@ -121,33 +122,9 @@ function extractYouTubeId(url = "") {
   }
 }
 
-/* -------------------- Timezone math (no libs) ------------------ */
-function tzOffsetMinutes(instant, tz) {
-  const asTz = new Date(instant.toLocaleString("en-US", { timeZone: tz }));
-  const asUtc = new Date(instant.toLocaleString("en-US", { timeZone: "UTC" }));
-  return Math.round((asTz - asUtc) / 60000);
-}
-function zonedDateTimeToUTCISO({ y, m, d, hh, mm, tz }) {
-  const pseudoUtc = new Date(Date.UTC(y, m - 1, d, hh, mm, 0, 0));
-  const off = tzOffsetMinutes(pseudoUtc, tz);
-  return new Date(pseudoUtc.getTime() - off * 60000).toISOString();
-}
-function prettyInTz(utcISO, tz = "America/Chicago") {
-  const d = new Date(utcISO);
-  const day = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz }).format(d);
-  const mon = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: tz }).format(d);
-  const date = new Intl.DateTimeFormat("en-US", { day: "numeric", timeZone: tz }).format(d);
-  const time = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: tz,
-  }).format(d);
-  return `${day}, ${mon} ${date} · ${time}`;
-}
-
-/* ---------------------------- Page ----------------------------- */
 export default function Landing() {
+  const navigate = useNavigate();
+
   const [settings, setSettings] = useState(null);
   const [proof, setProof] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -162,9 +139,6 @@ export default function Landing() {
   // lead state
   const [leadId, setLeadId] = useState(null);
   const [leadDraft, setLeadDraft] = useState(null);
-
-  const [slots, setSlots] = useState([]);
-  const [booking, setBooking] = useState(false);
 
   // local contact form fields
   const [fullName, setFullName] = useState("");
@@ -201,103 +175,6 @@ export default function Landing() {
     const accent = settings?.brand_accent || "#9b5cff";
     return { primary, accent };
   }, [settings]);
-
-  /* -------- Slots that honor Admin tz + parse weekly JSON string -------- */
-  async function computeSlots() {
-    const { data: av } = await supabase
-      .from("mf_availability")
-      .select("*")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const tz = av?.tz || "America/Chicago";
-    const slotMin = av?.slot_minutes ?? 30;
-    const buffer = av?.buffer_minutes ?? 15;
-    const minLeadH = av?.min_lead_hours ?? 12;
-    const windowDays = av?.booking_window_days ?? 14;
-
-    let weekly = av?.weekly || {};
-    if (typeof weekly === "string") {
-      try { weekly = JSON.parse(weekly); } catch { weekly = {}; }
-    }
-
-    const { data: taken } = await supabase
-      .from("mf_appointments")
-      .select("start_utc, end_utc, status")
-      .in("status", ["booked", "rescheduled", "scheduled"]);
-
-    const { data: blackouts } = await supabase.from("mf_blackouts").select("*");
-
-    const overlaps = (aStart, aEnd, bStart, bEnd) => aStart < bEnd && bStart < aEnd;
-
-    const nowUtc = new Date();
-    const startWindowUtc = new Date(nowUtc.getTime() + minLeadH * 3600 * 1000);
-    const endWindowUtc = new Date(nowUtc.getTime() + windowDays * 24 * 3600 * 1000);
-
-    const out = [];
-    let cursorUtc = startWindowUtc;
-    while (cursorUtc <= endWindowUtc) {
-      const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: tz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-        .format(cursorUtc)
-        .split("-");
-      const y = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
-      const d = parseInt(parts[2], 10);
-
-      const dow = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][
-        new Date(zonedDateTimeToUTCISO({ y, m, d, hh: 12, mm: 0, tz })).getUTCDay()
-      ];
-      const ranges = weekly[dow] || [];
-
-      for (const [startStr, endStr] of ranges) {
-        const [sH, sM] = startStr.split(":").map(Number);
-        const [eH, eM] = endStr.split(":").map(Number);
-
-        let slotStartUtc = new Date(zonedDateTimeToUTCISO({ y, m, d, hh: sH, mm: sM, tz }));
-        const rangeEndUtc = new Date(zonedDateTimeToUTCISO({ y, m, d, hh: eH, mm: eM, tz }));
-
-        while (slotStartUtc < rangeEndUtc) {
-          const slotEndUtc = new Date(slotStartUtc.getTime() + slotMin * 60000);
-          const withBufEndUtc = new Date(slotEndUtc.getTime() + buffer * 60000);
-
-          if (withBufEndUtc <= rangeEndUtc && slotStartUtc >= startWindowUtc) {
-            const isTaken = (taken || []).some((t) =>
-              overlaps(slotStartUtc, withBufEndUtc, new Date(t.start_utc), new Date(t.end_utc))
-            );
-            const isBlocked = (blackouts || []).some((b) =>
-              overlaps(slotStartUtc, withBufEndUtc, new Date(b.start_utc), new Date(b.end_utc))
-            );
-
-            out.push({
-              startUtc: slotStartUtc.toISOString(),
-              endUtc: slotEndUtc.toISOString(),
-              labelLocal: prettyInTz(slotStartUtc.toISOString(), tz),
-              labelTz: `Ends ${new Intl.DateTimeFormat("en-US", {
-                timeZone: tz,
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-              }).format(slotEndUtc)}`,
-              isTaken,
-              isBlocked,
-            });
-          }
-          slotStartUtc = new Date(slotStartUtc.getTime() + slotMin * 60000);
-        }
-      }
-
-      const nextNoonUtcISO = zonedDateTimeToUTCISO({ y, m, d: d + 1, hh: 12, mm: 0, tz });
-      cursorUtc = new Date(nextNoonUtcISO);
-    }
-
-    return out.slice(0, 120);
-  }
 
   /* -------------------- CONTACT → create lead -------------------- */
   async function handleContactNext() {
@@ -349,8 +226,6 @@ export default function Landing() {
     setFullName("");
     setEmail("");
     setPhone("");
-    setSlots([]);
-    setBooking(false);
   }
 
   const ytId =
@@ -374,7 +249,11 @@ export default function Landing() {
             <div className="h-9 w-32 bg-white/10 rounded" />
           )}
           <span className="text-white/60">
-            {loading ? <span className="inline-block h-4 w-28 animate-pulse bg-white/10 rounded" /> : (settings?.site_name || "Momentum Financial")}
+            {loading ? (
+              <span className="inline-block h-4 w-28 animate-pulse bg-white/10 rounded" />
+            ) : (
+              settings?.site_name || "Momentum Financial"
+            )}
           </span>
         </div>
         <div />
@@ -515,7 +394,7 @@ export default function Landing() {
             {/* HEADER */}
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold">
-                {step === "contact" ? "Start your application" : step === "qualify" ? "Answer a few questions" : "Pick a time"}
+                {step === "contact" ? "Start your application" : "Answer a few questions"}
               </h3>
               <button onClick={() => setOpen(false)} className="text-white/60 hover:text-white">✕</button>
             </div>
@@ -575,7 +454,12 @@ export default function Landing() {
             {/* STEP: QUALIFY */}
             {step === "qualify" && (
               <div>
-                <button onClick={() => setStep("contact")} className="text-white/60 hover:text-white mb-3">← Back</button>
+                <button
+                  onClick={() => setStep("contact")}
+                  className="text-white/60 hover:text-white mb-3"
+                >
+                  ← Back
+                </button>
                 <QualifyForm
                   questions={questions}
                   onSubmit={async (values) => {
@@ -612,83 +496,18 @@ export default function Landing() {
                       answers,
                     }));
 
-                    const slotsComputed = await computeSlots();
-                    setSlots(slotsComputed);
-                    setStep("slots");
+                    // ✅ After questions are submitted successfully,
+                    // send them to the dedicated schedule page with this lead_id
+                    if (!leadId) {
+                      alert("Something went wrong starting your application. Please try again.");
+                      return;
+                    }
+
+                    // Close modal and navigate to /schedule with lead_id in query
+                    setOpen(false);
+                    navigate(`/schedule?lead_id=${encodeURIComponent(leadId)}`);
                   }}
                 />
-              </div>
-            )}
-
-            {/* STEP: SLOTS */}
-            {step === "slots" && (
-              <div>
-                <button onClick={() => setStep("qualify")} className="text-white/60 hover:text-white mb-3">← Back</button>
-                {!slots.length ? (
-                  <div className="text-white/70">No slots available. Try different days.</div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-auto">
-                    {slots.map((slt) => {
-                      const disabled = slt.isTaken || slt.isBlocked || booking;
-                      return (
-                        <button
-                          key={slt.startUtc}
-                          disabled={disabled}
-                          onClick={async () => {
-                            try {
-                              setBooking(true);
-                              const { data: av } = await supabase
-                                .from("mf_availability")
-                                .select("*")
-                                .order("updated_at", { ascending: false })
-                                .limit(1)
-                                .maybeSingle();
-                              const tz = av?.tz || "America/Chicago";
-                              const durationMin = av?.slot_minutes ?? 30;
-
-                              const res = await fetch("/.netlify/functions/appointment-create", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  lead_id: leadId,
-                                  start_utc: slt.startUtc,
-                                  duration_min: durationMin,
-                                  tz,
-                                }),
-                              });
-                              if (!res.ok) {
-                                const txt = await res.text().catch(() => "");
-                                let msg = "Could not book. Try another slot.";
-                                try {
-                                  const j = JSON.parse(txt);
-                                  if (j?.error) msg = j.error;
-                                } catch {}
-                                if (res.status === 409) msg = "That slot was just taken. Pick another.";
-                                throw new Error(msg);
-                              }
-                              alert("Booked! We’ll email the details.");
-                              setOpen(false);
-                            } catch (e) {
-                              alert(e.message || "Could not book. Try another slot.");
-                            } finally {
-                              setBooking(false);
-                            }
-                          }}
-                          className={`rounded-lg border px-3 py-2 text-left ${
-                            slt.isTaken || slt.isBlocked
-                              ? "border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed"
-                              : "border-white/15 bg-white/5 hover:bg-white/10"
-                          }`}
-                        >
-                          <div className="font-semibold">{slt.labelLocal}</div>
-                          <div className="text-xs text-white/60">
-                            {slt.isTaken ? "Booked" : slt.labelTz}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             )}
           </div>
