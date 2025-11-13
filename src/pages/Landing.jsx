@@ -216,8 +216,8 @@ export default function Landing() {
       .single();
 
     if (error) {
-      console.error(error);
-      alert("Could not start your application. Please try again.");
+      console.error("mf_leads insert error", error);
+      alert(error.message || "Could not start your application. Please try again.");
       return;
     }
 
@@ -288,7 +288,7 @@ export default function Landing() {
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <div className="rounded-2xl border border-white/10 bg.white/[0.03] p-6">
               <div className="aspect-video w-full rounded-xl bg-black/30 border border-white/10 grid place-items-center">
                 <div className="text-center">
                   <div className="text-sm uppercase tracking-wide text-white/50">Video Coming Soon</div>
@@ -304,8 +304,8 @@ export default function Landing() {
             ) : (
               <button
                 onClick={openModal}
-                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg.white px-6 py-3
-                           font-semibold text-black shadow hover:shadow-lg active:scale-[.99] bg-white"
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-white px-6 py-3
+                           font-semibold text-black shadow hover:shadow-lg active:scale-[.99]"
               >
                 Book Call
               </button>
