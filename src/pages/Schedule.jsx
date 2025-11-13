@@ -141,6 +141,13 @@ export default function Schedule() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+  // 🔹 Meta Pixel: Lead on schedule page
+  useEffect(() => {
+    if (window.fbq) {
+      window.fbq("track", "Lead");
+    }
+  }, []);
+
   useEffect(() => {
     if (!leadId) {
       setLoading(false);
@@ -198,8 +205,7 @@ export default function Schedule() {
         throw new Error(msg);
       }
 
-      // ✅ Same booking backend logic, but instead of alert+close,
-      // send them to the Thank You page
+      // On success, go to Thank You page
       navigate("/thank-you");
     } catch (e) {
       alert(e.message || "Could not book. Try another slot.");
@@ -270,7 +276,7 @@ export default function Schedule() {
                       onClick={() => handleBook(slt)}
                       className={`rounded-lg border px-3 py-2 text-left ${
                         slt.isTaken || slt.isBlocked
-                          ? "border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed"
+                          ? "border-white/10 bg-white/[0.03] text.white/40 cursor-not-allowed"
                           : "border-white/15 bg-white/5 hover:bg-white/10"
                       }`}
                     >
