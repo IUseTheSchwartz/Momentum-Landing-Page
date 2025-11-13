@@ -29,17 +29,19 @@
       fbq('init', '736475339472754');
       // NOTE: No fbq('track', 'PageView') here – we fire events per-page in React
     </script>
+    <!-- End Meta Pixel Code -->
+  </head>
+  <body>
+    <!-- Meta Pixel noscript fallback MUST be in the body, not the head -->
     <noscript>
       <img
         height="1"
         width="1"
         style="display:none"
-        src="https://www.facebook.com/tr?id=736475339472754&ev=PageView&noscript=1"
+        src="https://www.facebook.com/tr?id=736475339472754&amp;ev=PageView&amp;noscript=1"
       />
     </noscript>
-    <!-- End Meta Pixel Code -->
-  </head>
-  <body>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
