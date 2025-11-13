@@ -145,6 +145,7 @@ export default function Landing() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
+  // Analytics + load data
   useEffect(() => {
     initAnalytics();
 
@@ -168,6 +169,13 @@ export default function Landing() {
       setProof(pRes?.data || []);
       setLoading(false);
     })();
+  }, []);
+
+  // 🔹 Meta Pixel: PageView on landing
+  useEffect(() => {
+    if (window.fbq) {
+      window.fbq("track", "PageView");
+    }
   }, []);
 
   const brandVars = useMemo(() => {
@@ -289,15 +297,15 @@ export default function Landing() {
             </div>
           )}
 
-          {/* CTA (mobile full width, desktop auto/centered) */}
+          {/* CTA */}
           <div className="mt-4 text-center">
             {loading ? (
               <Skeleton className="mx-auto h-12 w-full sm:w-72 rounded-xl" />
             ) : (
               <button
                 onClick={openModal}
-                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-white px-6 py-3
-                           font-semibold text-black shadow hover:shadow-lg active:scale-[.99]"
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg.white px-6 py-3
+                           font-semibold text-black shadow hover:shadow-lg active:scale-[.99] bg-white"
               >
                 Book Call
               </button>
@@ -353,7 +361,7 @@ export default function Landing() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+              <div className="rounded-2xl border border.white/10 bg-white/[0.03] p-3">
                 <ProofFeed items={proof} visibleCount={4} cycleMs={3000} blurTransition bigSlides />
               </div>
             )}
@@ -496,8 +504,6 @@ export default function Landing() {
                       answers,
                     }));
 
-                    // ✅ After questions are submitted successfully,
-                    // send them to the dedicated schedule page with this lead_id
                     if (!leadId) {
                       alert("Something went wrong starting your application. Please try again.");
                       return;
