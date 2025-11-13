@@ -1,15 +1,50 @@
 // File: src/pages/ThankYou.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient.js";
+
+function Skeleton({ className = "" }) {
+  return <div className={`animate-pulse rounded-md bg-white/10 ${className}`} />;
+}
 
 export default function ThankYou() {
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("mf_site_settings")
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setSettings(data || {});
+      setLoading(false);
+    })();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#1e1f22] text-white">
       <header className="mx-auto max-w-6xl px-4 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-32 bg-white/10 rounded" />
-          <span className="text-white/60">Momentum Financial</span>
+          {loading ? (
+            <Skeleton className="h-9 w-32 rounded" />
+          ) : settings?.logo_url ? (
+            <img src={settings.logo_url} alt="logo" className="h-9" />
+          ) : (
+            <div className="h-9 w-32 bg-white/10 rounded" />
+          )}
+          <span className="text-white/60">
+            {loading ? (
+              <span className="inline-block h-4 w-28 animate-pulse bg-white/10 rounded" />
+            ) : (
+              settings?.site_name || "Momentum Financial"
+            )}
+          </span>
         </div>
+
         <Link
           to="/"
           className="text-sm text-white/70 hover:text-white underline-offset-2 hover:underline"
