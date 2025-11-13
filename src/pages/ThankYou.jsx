@@ -24,12 +24,11 @@ export default function ThankYou() {
         </h1>
         <p className="text-white/75 text-lg max-w-xl">
           We’ve locked in your appointment. You’ll receive a confirmation with all the details.
-          Make sure to be in a quiet place, have your notes ready, and be on time — this is your shot
-          to change your income.
+          Have your notes ready, and be on time — this is your shot
+          to change your income and life.
         </p>
         <p className="text-white/60 text-sm">
-          If you need to make any changes, reply to the confirmation message or reach out to your
-          recruiter directly.
+          If you need to make any changes, click the reschedule button in the email.
         </p>
         <Link
           to="/"
