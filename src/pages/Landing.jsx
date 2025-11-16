@@ -32,7 +32,7 @@ function extractYouTubeId(url = "") {
 function CheckItem({ children }) {
   return (
     <li className="flex items-start gap-3">
-      <div className="mt-1 h-5 w-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">
+      <div className="mt-1 h-5 w-5 rounded-full bg-[#00A160]/20 text-[#00A160] flex items-center justify-center text-xs font-bold">
         ✓
       </div>
       <p className="text-sm sm:text-base text-white/80">{children}</p>
@@ -98,7 +98,7 @@ export default function Landing() {
     })();
   }, []);
 
-  // 🔹 Meta Pixel: PageView on landing
+  // Meta Pixel: PageView on landing
   useEffect(() => {
     if (window.fbq) {
       window.fbq("track", "PageView");
@@ -250,7 +250,7 @@ export default function Landing() {
           </button>
           <button
             onClick={openModal}
-            className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-sm text-black hover:bg-emerald-400 transition shadow"
+            className="rounded-xl bg-[#00A160] px-4 py-2 font-semibold text-sm text-black hover:bg-[#00C978] transition shadow"
           >
             Join the Team
           </button>
@@ -259,7 +259,7 @@ export default function Landing() {
         {/* mobile CTA only */}
         <button
           onClick={openModal}
-          className="md:hidden rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-sm text-black hover:bg-emerald-400 transition shadow"
+          className="md:hidden rounded-xl bg-[#00A160] px-4 py-2 font-semibold text-sm text-black hover:bg-[#00C978] transition shadow"
         >
           Join the Team
         </button>
@@ -287,7 +287,7 @@ export default function Landing() {
               {/* left: promise + bullets */}
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-medium text-white/70">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span className="h-2 w-2 rounded-full bg-[#00A160]" />
                   Remote life insurance agency • Training + leads included
                 </div>
 
@@ -313,7 +313,7 @@ export default function Landing() {
                 <div className="mt-6">
                   <button
                     onClick={openModal}
-                    className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-black shadow hover:bg-emerald-400 active:scale-[.99] transition"
+                    className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-[#00A160] px-6 py-3 font-semibold text-black shadow hover:bg-[#00C978] active:scale-[.99] transition"
                   >
                     Join the Team
                   </button>
@@ -406,28 +406,28 @@ export default function Landing() {
 
                 <button
                   onClick={openModal}
-                  className="mt-6 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-black shadow hover:bg-emerald-400 active:scale-[.99] transition"
+                  className="mt-6 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-[#00A160] px-6 py-3 font-semibold text-black shadow hover:bg-[#00C978] active:scale-[.99] transition"
                 >
                   Join the Team
                 </button>
               </div>
 
               <div className="h-full">
-                <div className="relative h-full min-h-[230px] rounded-2xl border border-white/10 bg-gradient-to-br from-red-700 via-black to-red-900 p-6 shadow-xl shadow-black/40">
+                <div className="relative h-full min-h-[230px] rounded-2xl border border-white/10 bg-gradient-to-br from-[#004830] via-black to-[#00A160] p-6 shadow-xl shadow-black/40">
                   <div className="text-xs uppercase tracking-[0.3em] text-white/60">
                     Momentum System
                   </div>
                   <div className="mt-4 space-y-2 text-sm sm:text-base font-semibold">
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <span className="h-2 w-2 rounded-full bg-[#00A160]" />
                       Top commissions
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <span className="h-2 w-2 rounded-full bg-[#00A160]" />
                       High quality leads
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <span className="h-2 w-2 rounded-full bg-[#00A160]" />
                       Daily mentorship
                     </div>
                   </div>
@@ -449,7 +449,7 @@ export default function Landing() {
           <div className="mt-8 grid gap-6 md:grid-cols-3">
             {/* Card 1 */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex flex-col">
-              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#00A160]/15 text-[#00A160]">
                 ✓
               </div>
               <h3 className="font-semibold text-lg mb-2">Access to high quality leads</h3>
@@ -459,7 +459,7 @@ export default function Landing() {
               </p>
               <button
                 onClick={openModal}
-                className="mt-4 inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 transition"
+                className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#00A160] px-4 py-2 text-sm font-semibold text-black hover:bg-[#00C978] transition"
               >
                 Join the Team
               </button>
@@ -467,7 +467,7 @@ export default function Landing() {
 
             {/* Card 2 */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex flex-col">
-              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#00A160]/15 text-[#00A160]">
                 🎧
               </div>
               <h3 className="font-semibold text-lg mb-2">
@@ -479,7 +479,7 @@ export default function Landing() {
               </p>
               <button
                 onClick={openModal}
-                className="mt-4 inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 transition"
+                className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#00A160] px-4 py-2 text-sm font-semibold text-black hover:bg-[#00C978] transition"
               >
                 Join the Team
               </button>
@@ -487,7 +487,7 @@ export default function Landing() {
 
             {/* Card 3 */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex flex-col">
-              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#00A160]/15 text-[#00A160]">
                 🤝
               </div>
               <h3 className="font-semibold text-lg mb-2">
@@ -500,7 +500,7 @@ export default function Landing() {
               </p>
               <button
                 onClick={openModal}
-                className="mt-4 inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 transition"
+                className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#00A160] px-4 py-2 text-sm font-semibold text-black hover:bg-[#00C978] transition"
               >
                 Join the Team
               </button>
@@ -559,7 +559,7 @@ export default function Landing() {
 
               <button
                 onClick={openModal}
-                className="mt-6 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-black shadow hover:bg-emerald-400 active:scale-[.99] transition"
+                className="mt-6 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-[#00A160] px-6 py-3 font-semibold text-black shadow hover:bg-[#00C978] active:scale-[.99] transition"
               >
                 Join the Team
               </button>
@@ -609,7 +609,7 @@ export default function Landing() {
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <h3 className="font-semibold text-lg mb-3 text-emerald-300">
+              <h3 className="font-semibold text-lg mb-3 text-[#00C978]">
                 Perfect for you if…
               </h3>
               <ul className="space-y-3 text-sm text-white/75">
@@ -625,7 +625,7 @@ export default function Landing() {
 
           <button
             onClick={openModal}
-            className="mt-8 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-black shadow hover:bg-emerald-400 active:scale-[.99] transition"
+            className="mt-8 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-[#00A160] px-6 py-3 font-semibold text-black shadow hover:bg-[#00C978] active:scale-[.99] transition"
           >
             Join the Team
           </button>
@@ -699,14 +699,14 @@ export default function Landing() {
 
           <button
             onClick={openModal}
-            className="mt-8 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-black shadow hover:bg-emerald-400 active:scale-[.99] transition"
+            className="mt-8 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-[#00A160] px-6 py-3 font-semibold text-black shadow hover:bg-[#00C978] active:scale-[.99] transition"
           >
             Join the Team
           </button>
         </section>
       </main>
 
-      {/* BOOKING MODAL (unchanged behavior) */}
+      {/* BOOKING MODAL */}
       {open && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-[#2b2d31] border border-white/10 p-4">
