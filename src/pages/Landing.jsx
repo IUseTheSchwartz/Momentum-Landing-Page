@@ -286,9 +286,9 @@ export default function Landing() {
             <div className="grid gap-10 lg:grid-cols-2 items-center">
               {/* left: promise + bullets */}
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg.white/[0.04] px-3 py-1 text-xs font-medium text-white/70">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-medium text-white/70">
                   <span className="h-2 w-2 rounded-full bg-[#00A160]" />
-                  Remote life insurance agency • Training + leads included
+                  Remote life insurance agency • Training + marketing support included
                 </div>
 
                 <h1 className="mt-4 text-3xl sm:text-5xl font-extrabold tracking-tight">
@@ -303,7 +303,7 @@ export default function Landing() {
                 </p>
 
                 <ul className="mt-5 space-y-3">
-                  <CheckItem>Access to high quality leads</CheckItem>
+                  <CheckItem>A clear roadmap from brand-new to top producer</CheckItem>
                   <CheckItem>Daily mentorship and accountability</CheckItem>
                   <CheckItem>
                     A proven system and leadership that actually cares about your success
@@ -397,10 +397,13 @@ export default function Landing() {
                 </p>
 
                 <ul className="mt-5 space-y-3">
-                  <CheckItem>Access to high quality leads</CheckItem>
                   <CheckItem>Daily mentorship and accountability</CheckItem>
                   <CheckItem>
                     A culture that rewards effort, coachability, and results
+                  </CheckItem>
+                  <CheckItem>
+                    Work from anywhere with leaders and teammates online all day actually
+                    doing the work
                   </CheckItem>
                 </ul>
 
@@ -424,7 +427,7 @@ export default function Landing() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-[#00A160]" />
-                      High quality leads
+                      Consistent conversations with people who requested info
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-[#00A160]" />
@@ -454,12 +457,13 @@ export default function Landing() {
               </div>
               <h3 className="font-semibold text-lg mb-2">Access to high quality leads</h3>
               <p className="text-sm text-white/75 flex-1">
-                Plug into high-quality leads so you&apos;re spending your time talking to
-                people who actually want coverage — not cold-calling old lists.
+                Plug into a steady flow of people who already requested coverage, so
+                you&apos;re spending your time helping families instead of cold-calling
+                random lists.
               </p>
               <button
                 onClick={openModal}
-                className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#00A160] px-4 py-2 text-sm font-semibold text.black hover:bg-[#00C978] transition"
+                className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#00A160] px-4 py-2 text-sm font-semibold text-black hover:bg-[#00C978] transition"
               >
                 Join the Team
               </button>
@@ -565,12 +569,11 @@ export default function Landing() {
               </button>
             </div>
 
-            {/* 👇 ONLY CHANGE IS overflow-hidden ADDED HERE */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 overflow-hidden">
               {loading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-28 w.full rounded-xl" />
+                    <Skeleton key={i} className="h-28 w-full rounded-xl" />
                   ))}
                 </div>
               ) : (
@@ -644,7 +647,7 @@ export default function Landing() {
               <h3 className="font-semibold text-sm sm:text-base">
                 Do I need a life insurance license already?
               </h3>
-              <p className="mt-2 text-sm text.white/75">
+              <p className="mt-2 text-sm text-white/75">
                 No. If you&apos;re not licensed yet, we&apos;ll show you exactly how to
                 get it quickly and what that process looks like.
               </p>
@@ -660,15 +663,17 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg.white/[0.03] p-4">
-              <h3 className="font-semibold text-sm sm:text-base">How do leads work?</h3>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <h3 className="font-semibold text-sm sm:text-base">
+                Who will I be talking to?
+              </h3>
               <p className="mt-2 text-sm text-white/75">
-                We work with high quality leads. You&apos;ll never be told to cold-call
-                the phone book or pound your friends and family.
+                You&apos;ll be talking to people who have requested information about life
+                insurance – never random cold calls or just your friends and family.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg.white/[0.03] p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="font-semibold text-sm sm:text-base">
                 Can I start part-time?
               </h3>
@@ -678,16 +683,16 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border.white/10 bg-white/[0.03] p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="font-semibold text-sm sm:text-base">
                 Where is training held?
               </h3>
-              <p className="mt-2 text-sm text.white/75">
+              <p className="mt-2 text-sm text-white/75">
                 Mostly on Zoom so you can plug in from anywhere.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg.white/[0.03] p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="font-semibold text-sm sm:text-base">
                 How soon can I realistically start making money?
               </h3>
@@ -730,26 +735,26 @@ export default function Landing() {
                 <div className="grid gap-2">
                   <label className="text-sm text-white/70">Full Name</label>
                   <input
-                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline.none"
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="John Carter"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <label className="text-sm text.white/70">Phone</label>
+                  <label className="text-sm text-white/70">Phone</label>
                   <input
-                    className="w-full rounded-lg bg-black/30 border border.white/10 px-3 py-2 outline-none"
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="(555) 555-5555"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <label className="text-sm text.white/70">Email</label>
+                  <label className="text-sm text-white/70">Email</label>
                   <input
                     type="email"
-                    className="w-full rounded-lg bg-black/30 border border.white/10 px-3 py-2 outline-none"
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 outline-none"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
